@@ -33,13 +33,16 @@ echo "🏗️ Building Signed Release APK..."
 
 # 4. Move and Rename
 cd ..
-APK_PATH="android/app/build/outputs/apk/release/app-release.apk"
+APK_SOURCE_PATH="android/app/build/outputs/apk/release/app-release.apk"
+APK_DEST_PATH="docs/lastbench-v2.8-PRODUCTION.apk"
 
-if [ -f "$APK_PATH" ]; then
-    mv "$APK_PATH" lastbench-v2.7-NOTIFICATIONS-ENABLED.apk
-    echo "✅ Build Success! Created: lastbench-v2.7-NOTIFICATIONS-ENABLED.apk"
-    ls -lh lastbench-v2.7-NOTIFICATIONS-ENABLED.apk
+if [ -f "$APK_SOURCE_PATH" ]; then
+    # Ensure the docs directory exists
+    mkdir -p docs
+    mv "$APK_SOURCE_PATH" "$APK_DEST_PATH"
+    echo "✅ Build Success! APK moved to $APK_DEST_PATH"
+    ls -lh "$APK_DEST_PATH"
 else
-    echo "❌ Build Failed! APK not found at $APK_PATH"
+    echo "❌ Build Failed! APK not found at $APK_SOURCE_PATH"
     exit 1
 fi
