@@ -1,7 +1,7 @@
 {
-    "latestVersion": "2.10.0",
+    "latestVersion": "2.10.1",
     "minSupportedVersion": "2.8.0",
     "updateUrl": "https://t-jayaprakash.github.io/LastBench/",
-    "forceUpdate": false,
-    "message": "Major Update! Added Instagram-style pull-to-refresh, password visibility toggle, and fixed feed loading issues. Update now!"
+    "forceUpdate": true,
+    "message": "Critical Update! Fixed an issue where the previous update contained the wrong file. Please update to v2.10.1 immediately!"
 }

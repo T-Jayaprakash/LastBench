@@ -1,6 +1,6 @@
 // App version management
 // Update this version number whenever you release a new version
-export const APP_VERSION = '2.10.0';
+export const APP_VERSION = '2.10.1';
 
 // Minimum supported version - users below this will be forced to update
 export const MIN_SUPPORTED_VERSION = '2.8.0';
