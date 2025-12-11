@@ -33,27 +33,43 @@ const UpdateModal: React.FC<UpdateModalProps> = ({ version, message, updateUrl, 
                     <p className="text-lg font-semibold text-primary-text dark:text-dark-primary-text mb-2">
                         Version {version}
                     </p>
-                    <p className="text-secondary-text dark:text-dark-secondary-text mb-6">
+                    <p className="text-secondary-text dark:text-dark-secondary-text mb-4">
                         {message || (forceUpdate
                             ? 'This version is no longer supported. Please update to continue using Genfess.'
                             : 'A new version is available with improvements and bug fixes.')}
                     </p>
 
                     {forceUpdate && (
-                        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 mb-6">
-                            <p className="text-sm text-red-600 dark:text-red-400 font-medium">
-                                ⚠️ You must update to continue
+                        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-6">
+                            <p className="text-sm text-red-600 dark:text-red-400 font-medium flex items-center justify-center gap-2">
+                                <span>⚠️</span>
+                                <span>You must update to continue using Genfess</span>
                             </p>
                         </div>
                     )}
+
+                    {/* Disclaimer */}
+                    <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6">
+                        <p className="text-xs text-blue-600 dark:text-blue-400 text-left space-y-1">
+                            <span className="block font-bold mb-2">📱 Installation Instructions:</span>
+                            <span className="block">1. Tap "Download Update" below</span>
+                            <span className="block">2. Your browser will download the APK file</span>
+                            <span className="block">3. Open the downloaded file</span>
+                            <span className="block">4. Tap "Install" to update</span>
+                            <span className="block mt-2">✅ Safe & Verified Update</span>
+                        </p>
+                    </div>
 
                     {/* Buttons */}
                     <div className="flex flex-col gap-3">
                         <button
                             onClick={handleUpdate}
-                            className="w-full bg-accent-primary hover:bg-accent-primary/90 text-white font-bold py-3 px-6 rounded-xl transition-all duration-200 active:scale-95 shadow-lg"
+                            className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-bold py-4 px-6 rounded-xl transition-all duration-200 active:scale-95 shadow-lg flex items-center justify-center gap-2"
                         >
-                            Update Now
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                            </svg>
+                            <span>Download Update</span>
                         </button>
 
                         {!forceUpdate && onClose && (
@@ -61,16 +77,13 @@ const UpdateModal: React.FC<UpdateModalProps> = ({ version, message, updateUrl, 
                                 onClick={onClose}
                                 className="w-full bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 text-primary-text dark:text-dark-primary-text font-semibold py-3 px-6 rounded-xl transition-all duration-200 active:scale-95"
                             >
-                                Later
+                                Remind Me Later
                             </button>
                         )}
                     </div>
 
                     <p className="text-xs text-secondary-text dark:text-dark-secondary-text mt-4">
-                        Download from{' '}
-                        <a href={updateUrl} className="text-accent-primary underline" target="_blank" rel="noopener noreferrer">
-                            {updateUrl}
-                        </a>
+                        Download from our official website
                     </p>
                 </div>
             </div>

@@ -1,7 +1,7 @@
 {
     "latestVersion": "2.9.0",
     "minSupportedVersion": "2.8.0",
-    "updateUrl": "https://raw.githubusercontent.com/T-Jayaprakash/LastBench/main/docs/genfess-v2.9.0.apk",
+    "updateUrl": "https://t-jayaprakash.github.io/LastBench/",
     "forceUpdate": false,
     "message": "Instagram-style likes now work perfectly! Also includes the new Genfess app icon. Update for a better experience."
 }

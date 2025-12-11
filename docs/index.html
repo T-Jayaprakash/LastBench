@@ -117,6 +117,22 @@
                 transform: translateY(-20px);
             }
         }
+
+        @keyframes pulse-subtle {
+
+            0%,
+            100% {
+                box-shadow: 0 0 30px rgba(99, 102, 241, 0.5);
+            }
+
+            50% {
+                box-shadow: 0 0 40px rgba(99, 102, 241, 0.8);
+            }
+        }
+
+        .animate-pulse-subtle {
+            animation: pulse-subtle 3s ease-in-out infinite;
+        }
     </style>
 </head>
 
@@ -156,24 +172,54 @@
             </p>
 
             <div class="flex flex-col sm:flex-row gap-4 justify-center md:justify-start pt-4">
-                <!-- Android Button -->
-                <a href="./genfess-v2.9.0.apk"
-                    class="group relative px-8 py-4 bg-white text-black rounded-full font-bold text-lg hover:scale-105 transition-transform flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(255,255,255,0.3)]">
-                    <i class="fab fa-android text-green-600 text-2xl"></i>
-                    <span>Download v2.9.0</span>
+                <!-- Main Download Button -->
+                <a href="./genfess-v2.9.0.apk" download
+                    class="group relative px-10 py-5 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-2xl font-bold text-xl hover:scale-105 transition-transform flex items-center justify-center gap-3 shadow-[0_0_30px_rgba(99,102,241,0.5)] animate-pulse-subtle">
+                    <i class="fab fa-android text-3xl"></i>
+                    <div class="flex flex-col items-start">
+                        <span>Download v2.9.0</span>
+                        <span class="text-xs font-normal opacity-90">3.9 MB • Latest Version</span>
+                    </div>
                     <div
-                        class="absolute inset-0 rounded-full bg-white opacity-0 group-hover:opacity-20 transition-opacity">
+                        class="absolute inset-0 rounded-2xl bg-white opacity-0 group-hover:opacity-10 transition-opacity">
                     </div>
                 </a>
 
-                <!-- iOS Button -->
+                <!-- iOS Coming Soon -->
                 <button
-                    class="px-8 py-4 glass text-white rounded-full font-bold text-lg flex items-center justify-center gap-3 opacity-70 cursor-not-allowed">
+                    class="px-8 py-4 glass text-white rounded-2xl font-bold text-lg flex items-center justify-center gap-3 opacity-70 cursor-not-allowed">
                     <i class="fab fa-apple text-2xl"></i>
-                    <span>Coming Soon</span>
+                    <span>iOS Coming Soon</span>
                 </button>
             </div>
-            <p class="text-xs text-gray-500 pt-2">Requires Android 8.0+ • 100% Free & Secure</p>
+
+            <!-- Download Stats/Info -->
+            <div class="flex gap-6 pt-4 text-sm text-gray-400">
+                <div class="flex items-center gap-2">
+                    <i class="fas fa-shield-alt text-green-400"></i>
+                    <span>100% Safe</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <i class="fas fa-download text-blue-400"></i>
+                    <span>Free Forever</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <i class="fas fa-check-circle text-purple-400"></i>
+                    <span>No Ads</span>
+                </div>
+            </div>
+
+            <!-- Installation Steps -->
+            <div class="mt-6 p-4 glass rounded-xl max-w-md">
+                <p class="text-sm font-bold text-white mb-2">📱 How to Install:</p>
+                <ol class="text-xs text-gray-300 space-y-1 list-decimal list-inside">
+                    <li>Tap the download button above</li>
+                    <li>Allow installation from unknown sources if prompted</li>
+                    <li>Open the downloaded APK file</li>
+                    <li>Tap "Install" and enjoy Genfess!</li>
+                </ol>
+            </div>
+            <p class="text-xs text-gray-500 pt-2">Requires Android 7.0+ • Updated Dec 11, 2025</p>
         </div>
 
         <!-- Phone Mockup (CSS Only representation) -->
