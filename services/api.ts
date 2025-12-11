@@ -322,7 +322,7 @@ const toggleInteraction = async (postId: string, type: 'like'): Promise<number> 
         const user = await getCurrentUser();
         if (!user) {
             console.error('❌ toggleInteraction: No user found');
-            return 0;
+            throw new Error('User not authenticated');
         }
 
         console.log(`🔄 toggleInteraction: ${type} for post ${postId} by user ${user.userId}`);
@@ -338,7 +338,7 @@ const toggleInteraction = async (postId: string, type: 'like'): Promise<number> 
 
         if (fetchError) {
             console.error('❌ toggleInteraction fetch error:', fetchError);
-            return 0;
+            throw fetchError;
         }
 
         let newCount = 0;
@@ -353,7 +353,7 @@ const toggleInteraction = async (postId: string, type: 'like'): Promise<number> 
 
             if (deleteError) {
                 console.error('❌ Delete interaction error:', deleteError);
-                return 0;
+                throw deleteError;
             }
 
             // Decrement count
@@ -365,7 +365,7 @@ const toggleInteraction = async (postId: string, type: 'like'): Promise<number> 
 
             if (fetchPostError) {
                 console.error('❌ Fetch post error:', fetchPostError);
-                return 0;
+                throw fetchPostError;
             }
 
             const currentCount = post ? post[`${type}s_count`] : 0;
@@ -378,7 +378,7 @@ const toggleInteraction = async (postId: string, type: 'like'): Promise<number> 
 
             if (updateError) {
                 console.error('❌ Update post count error:', updateError);
-                return 0;
+                throw updateError;
             }
 
             console.log(`✅ Unlike successful. New count: ${newCount}`);
@@ -396,7 +396,7 @@ const toggleInteraction = async (postId: string, type: 'like'): Promise<number> 
             if (insertError) {
                 console.error('❌ Insert interaction error:', insertError);
                 console.error('Error details:', JSON.stringify(insertError, null, 2));
-                return 0;
+                throw insertError;
             }
 
             // Increment count
@@ -408,7 +408,7 @@ const toggleInteraction = async (postId: string, type: 'like'): Promise<number> 
 
             if (fetchPostError) {
                 console.error('❌ Fetch post error:', fetchPostError);
-                return 0;
+                throw fetchPostError;
             }
 
             const currentCount = post ? post[`${type}s_count`] : 0;
@@ -422,7 +422,7 @@ const toggleInteraction = async (postId: string, type: 'like'): Promise<number> 
             if (updateError) {
                 console.error('❌ Update post count error:', updateError);
                 console.error('Error details:', JSON.stringify(updateError, null, 2));
-                return 0;
+                throw updateError;
             }
 
             console.log(`✅ Like successful. New count: ${newCount}`);
@@ -431,7 +431,7 @@ const toggleInteraction = async (postId: string, type: 'like'): Promise<number> 
         return newCount;
     } catch (err) {
         console.error('❌ toggleInteraction unexpected error:', err);
-        return 0;
+        throw err; // Re-throw instead of returning 0
     }
 };
 

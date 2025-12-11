@@ -81,20 +81,32 @@ const PostCard: React.FC<PostCardProps> = memo(({ post, currentUser, onCommentCl
         if (navigator.vibrate) navigator.vibrate(10);
 
         const newLikedState = !isLiked;
-        setIsLiked(newLikedState);
-        setLikesCount(prev => newLikedState ? prev + 1 : prev - 1);
+        const previousLikeState = isLiked;
+        const previousCount = likesCount;
 
+        // Optimistic UI update (Instagram-style instant feedback)
+        setIsLiked(newLikedState);
+        setLikesCount(prev => newLikedState ? prev + 1 : Math.max(0, prev - 1));
+
+        // Show heart animation when liking
         if (newLikedState) {
             if (heartTimeoutRef.current) clearTimeout(heartTimeoutRef.current);
             setShowHeart(true);
             heartTimeoutRef.current = window.setTimeout(() => setShowHeart(false), 1200);
         }
 
-        api.toggleLike(post.id).then((newCount) => {
-            setLikesCount(newCount);
-        }).catch(() => {
-            setIsLiked(!newLikedState);
-            setLikesCount(prev => newLikedState ? prev - 1 : prev + 1);
+        // Make API call in background
+        api.toggleLike(post.id).then((response) => {
+            // Only update count if API returns a valid count
+            if (response !== null && response !== undefined && response >= 0) {
+                setLikesCount(response);
+            }
+            // If response is valid, keep the liked state as is
+        }).catch((error) => {
+            // On error, revert to previous state
+            console.error('Like toggle failed:', error);
+            setIsLiked(previousLikeState);
+            setLikesCount(previousCount);
         });
     };
 
