@@ -130,54 +130,31 @@ export const getPosts = async (page = 0, limit = 20): Promise<Post[]> => {
         }
 
         const userCollege = user.college.trim();
-        const from = page * limit;
-        const to = from + limit - 1;
 
-        // PERFORMANCE OPTIMIZATION: Sequential fetch
-        // 1. Fetch Posts first
-        const { data: postsData, error: postsError } = await supabase
-            .from('posts')
-            .select(`
-                id, author_id, text, image_url, images, department, tags, likes_count, comments_count, created_at, college,
-                profiles!left (${PROFILE_FIELDS})
-            `)
-            .eq('college', userCollege)
-            .order('created_at', { ascending: false })
-            .range(from, to);
+        // OPTIMIZED: Use RPC for reduced egress (flat response, minimal columns)
+        const { data, error } = await supabase.rpc('get_posts_paginated', {
+            p_college: userCollege,
+            p_limit: limit,
+            p_offset: page * limit,
+            p_user_id: user ? user.userId : null
+        });
 
-        if (postsError) {
-            console.error('getPosts Error:', JSON.stringify(postsError, null, 2));
+        if (error) {
+            console.error('getPosts RPC Error:', JSON.stringify(error, null, 2));
             return [];
         }
 
-        const mappedPosts = (postsData || []).map(mapDbPostToPost);
+        // Map flat RPC result to Post object
+        const mappedPosts = (data || []).map((p: any) => ({
+            ...mapDbPostToPost(p),
+            isLiked: p.is_liked // RPC returns this if user_id was passed
+        }));
 
-        // 2. Fetch Likes ONLY for the retrieved posts (reduces load from 2000 rows to 15 rows)
-        if (user && mappedPosts.length > 0) {
-            const postIds = mappedPosts.map(p => p.id);
-            const { data: likesData } = await supabase
-                .from('interactions')
-                .select('post_id')
-                .eq('user_id', user.userId)
-                .eq('type', 'like')
-                .in('post_id', postIds);
-
-            if (likesData) {
-                const likedPostIds = new Set(likesData.map((like: any) => like.post_id));
-                mappedPosts.forEach(post => {
-                    post.isLiked = likedPostIds.has(post.id);
-                });
-            }
-        }
-
-        // Cache ONLY the first page for faster initial load
+        // Cache first page
         if (page === 0 && mappedPosts.length > 0) {
             try {
                 localStorage.setItem(FEED_CACHE_KEY, JSON.stringify(mappedPosts.slice(0, 20)));
-                console.log(`✅ Cached ${Math.min(mappedPosts.length, 20)} posts`);
-            } catch (e) {
-                console.warn("Failed to cache posts:", e);
-            }
+            } catch (e) { console.warn("Cache fail", e); }
         }
 
         return mappedPosts;
