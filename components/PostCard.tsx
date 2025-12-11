@@ -4,6 +4,8 @@ import { Post, User } from '../types/index';
 import { HeartIcon, ChatBubbleOvalLeftIcon, ThreeDotsIcon } from './Icons';
 import * as api from '../services/api';
 
+import { linkifyText } from '../utils/textUtils';
+
 interface PostCardProps {
     post: Post;
     currentUser?: User | null;
@@ -172,7 +174,7 @@ const PostCard: React.FC<PostCardProps> = memo(({ post, currentUser, onCommentCl
                 onDoubleClick={postImages.length === 0 ? handleLikeToggle : undefined}
             >
                 <p className="text-xl font-medium leading-snug text-primary-text dark:text-dark-primary-text whitespace-pre-wrap break-words">
-                    {post.text}
+                    {linkifyText(post.text)}
                 </p>
             </div>
 

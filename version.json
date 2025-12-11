@@ -1,7 +1,7 @@
 {
-    "latestVersion": "2.10.5",
+    "latestVersion": "2.10.6",
     "minSupportedVersion": "2.8.0",
     "updateUrl": "https://t-jayaprakash.github.io/LastBench/",
     "forceUpdate": true,
-    "message": "Fixed Blank Screen! We resolved a critical issue causing posts to be invisible. Update to v2.10.5 immediately!"
+    "message": "Feature Update! We made links in posts clickable. Update to v2.10.6 to see it in action!"
 }
