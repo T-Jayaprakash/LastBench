@@ -124,47 +124,41 @@ export const getPosts = async (page = 0, limit = 20): Promise<Post[]> => {
         const from = page * limit;
         const to = from + limit - 1;
 
-        // PERFORMANCE OPTIMIZATION: 
-        // 1. Filter by 'college' column on posts table directly (faster than joining profiles)
-        // 2. Use left join instead of inner join to avoid LATERAL join overhead
-        // 3. Select only needed fields to reduce data transfer
-        // 4. Fetch posts and likes in parallel for faster loading
-        const [postsResult, likesResult] = await Promise.all([
-            supabase
-                .from('posts')
-                .select(`
-                    id, author_id, text, image_url, images, department, tags, likes_count, comments_count, created_at, college,
-                    profiles!left (${PROFILE_FIELDS})
-                `)
-                .eq('college', userCollege)
-                .order('created_at', { ascending: false })
-                .range(from, to),
-            // Fetch likes in parallel - increase limit to ensure liked state persists
-            user ? supabase
+        // PERFORMANCE OPTIMIZATION: Sequential fetch
+        // 1. Fetch Posts first
+        const { data: postsData, error: postsError } = await supabase
+            .from('posts')
+            .select(`
+                id, author_id, text, image_url, images, department, tags, likes_count, comments_count, created_at, college,
+                profiles!left (${PROFILE_FIELDS})
+            `)
+            .eq('college', userCollege)
+            .order('created_at', { ascending: false })
+            .range(from, to);
+
+        if (postsError) {
+            console.error('getPosts Error:', JSON.stringify(postsError, null, 2));
+            return [];
+        }
+
+        const mappedPosts = (postsData || []).map(mapDbPostToPost);
+
+        // 2. Fetch Likes ONLY for the retrieved posts (reduces load from 2000 rows to 15 rows)
+        if (user && mappedPosts.length > 0) {
+            const postIds = mappedPosts.map(p => p.id);
+            const { data: likesData } = await supabase
                 .from('interactions')
                 .select('post_id')
                 .eq('user_id', user.userId)
                 .eq('type', 'like')
-                .order('created_at', { ascending: false })
-                .limit(2000)
-                : Promise.resolve({ data: null, error: null })
-        ]);
+                .in('post_id', postIds);
 
-        const { data, error } = postsResult;
-
-        if (error) {
-            console.error('getPosts Error:', JSON.stringify(error, null, 2));
-            return [];
-        }
-
-        const mappedPosts = (data || []).map(mapDbPostToPost);
-
-        // Apply likes from parallel fetch
-        if (likesResult.data) {
-            const likedPostIds = new Set(likesResult.data.map((like: any) => like.post_id));
-            mappedPosts.forEach(post => {
-                post.isLiked = likedPostIds.has(post.id);
-            });
+            if (likesData) {
+                const likedPostIds = new Set(likesData.map((like: any) => like.post_id));
+                mappedPosts.forEach(post => {
+                    post.isLiked = likedPostIds.has(post.id);
+                });
+            }
         }
 
         // Cache ONLY the first page for faster initial load

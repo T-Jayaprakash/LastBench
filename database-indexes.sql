@@ -19,10 +19,11 @@ CREATE INDEX IF NOT EXISTS idx_profiles_college ON profiles(college);
 CREATE INDEX IF NOT EXISTS idx_profiles_id ON profiles(id);
 
 -- 6. Index on interactions for faster like lookups
-CREATE INDEX IF NOT EXISTS idx_interactions_user_post_type ON interactions(user_id, post_id, type);
+-- Optimized for: WHERE user_id = X AND type = 'like' AND post_id IN (...)
+CREATE INDEX IF NOT EXISTS idx_interactions_user_type_post ON interactions(user_id, type, post_id);
 
 -- 7. Index on interactions.post_id for faster post lookups
-CREATE INDEX IF NOT EXISTS idx_interactions_post_id ON interactions(post_id) WHERE type = 'like';
+CREATE INDEX IF NOT EXISTS idx_interactions_post_id ON interactions(post_id);
 
 -- 8. Index on posts.author_id for profile joins
 CREATE INDEX IF NOT EXISTS idx_posts_author_id ON posts(author_id);
@@ -30,8 +31,15 @@ CREATE INDEX IF NOT EXISTS idx_posts_author_id ON posts(author_id);
 -- 9. Index on profiles.anon_id for user post queries
 CREATE INDEX IF NOT EXISTS idx_profiles_anon_id ON profiles(anon_id);
 
+-- 10. Index on comments.post_id for fetching comments
+CREATE INDEX IF NOT EXISTS idx_comments_post_id ON comments(post_id);
+
+-- 11. Index on notifications.user_id for fetching notifications
+CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id, created_at DESC);
+
 -- Analyze tables to update statistics (helps query planner)
 ANALYZE posts;
 ANALYZE profiles;
 ANALYZE interactions;
-
+ANALYZE comments;
+ANALYZE notifications;

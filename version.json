@@ -1,7 +1,7 @@
 {
-    "latestVersion": "2.10.3",
+    "latestVersion": "2.10.4",
     "minSupportedVersion": "2.8.0",
     "updateUrl": "https://t-jayaprakash.github.io/LastBench/",
     "forceUpdate": true,
-    "message": "Performance Update! We improved feed loading speed. Update to v2.10.3 for a faster experience."
+    "message": "Super Fast Update! We optimized database queries for blazing speed. Update to v2.10.4 now!"
 }
