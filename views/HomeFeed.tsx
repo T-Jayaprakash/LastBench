@@ -12,8 +12,8 @@ import { mergeRealtimeEvent } from '../src/utils/realtimeUtils';
 
 const PULL_THRESHOLD = 120; // Increased threshold for better feel
 const AUTO_REFRESH_INTERVAL = 15000; // 15 seconds
-const INITIAL_LOAD_COUNT = 50; // Load 50 posts initially to fix "only 6 posts" issue
-const PAGINATION_SIZE = 50; // Load 50 more posts when scrolling
+const INITIAL_LOAD_COUNT = 15; // Reduced for faster initial load (TTI)
+const PAGINATION_SIZE = 15; // Load 15 more posts when scrolling
 const SCROLL_DEBOUNCE = 100; // Debounce scroll events for performance
 
 interface HomeFeedProps {
