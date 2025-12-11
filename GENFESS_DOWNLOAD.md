@@ -9,19 +9,19 @@ Your **Genfess v2.8.0** APK has been successfully built and uploaded to GitHub!
 ## 📥 Download APK
 
 ### **Direct Download Link:**
-**[Download Genfess v2.8.0 APK](https://github.com/T-Jayaprakash/Genfess/raw/main/docs/genfess-v2.8.0.apk)**
+**[Download Genfess v2.8.0 APK](https://github.com/T-Jayaprakash/LastBench/raw/main/docs/genfess-v2.8.0.apk)**
 
 ### Alternative Download Options:
 
 1. **From GitHub Releases (Recommended):**
-   - Visit: https://github.com/T-Jayaprakash/Genfess/releases
+   - Visit: https://github.com/T-Jayaprakash/LastBench/releases
    - Download the latest version
 
 2. **Direct from Repository:**
-   - https://github.com/T-Jayaprakash/Genfess/raw/main/docs/genfess-v2.8.0.apk
+   - https://github.com/T-Jayaprakash/LastBench/raw/main/docs/genfess-v2.8.0.apk
 
 3. **Browse Repository:**
-   - https://github.com/T-Jayaprakash/Genfess
+   - https://github.com/T-Jayaprakash/LastBench
 
 ---
 
@@ -39,7 +39,7 @@ Your **Genfess v2.8.0** APK has been successfully built and uploaded to GitHub!
 
 The app includes automatic update checking. The version information is stored in:
 - `version.json` file
-- GitHub URL: https://raw.githubusercontent.com/T-Jayaprakash/Genfess/main/version.json
+- GitHub URL: https://raw.githubusercontent.com/T-Jayaprakash/LastBench/main/version.json
 
 ---
 
@@ -65,7 +65,7 @@ The app includes automatic update checking. The version information is stored in
 
 ## 🔗 Repository Information
 
-- **GitHub Repository:** https://github.com/T-Jayaprakash/Genfess
+- **GitHub Repository:** https://github.com/T-Jayaprakash/LastBench
 - **Repository Owner:** T-Jayaprakash
 - **Branch:** main
 
@@ -74,7 +74,7 @@ The app includes automatic update checking. The version information is stored in
 ## 📞 Support
 
 For issues or feedback, please open an issue on the GitHub repository:
-https://github.com/T-Jayaprakash/Genfess/issues
+https://github.com/T-Jayaprakash/LastBench/issues
 
 ---
 
@@ -84,7 +84,7 @@ Your app is now live and ready to be downloaded by users!
 
 **Share this link with your users:**
 ```
-https://github.com/T-Jayaprakash/Genfess/raw/main/docs/genfess-v2.8.0.apk
+https://github.com/T-Jayaprakash/LastBench/raw/main/docs/genfess-v2.8.0.apk
 ```
 
 ---
