@@ -1,0 +1,13 @@
+{
+    "name": "thumbnail-generator",
+    "version": "1.0.0",
+    "description": "Serverless function to generate WebP thumbnails for Supabase Storage",
+    "main": "index.js",
+    "scripts": {
+        "start": "node index.js"
+    },
+    "dependencies": {
+        "@supabase/supabase-js": "^2.0.0",
+        "sharp": "^0.32.0"
+    }
+}

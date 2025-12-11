@@ -6,7 +6,14 @@ const PROFILE_FIELDS = 'id, anon_id, display_name, avatar_color, college, depart
 const FEED_CACHE_KEY = 'lastbench_feed_cache';
 
 export const mapDbPostToPost = (dbPost: any): Post => {
+    // Handle both joined (profiles object) and flat (RPC) profile data
     const profile = Array.isArray(dbPost.profiles) ? dbPost.profiles[0] : dbPost.profiles;
+
+    // Flat fields from RPC
+    const rpcDisplayName = dbPost.display_name;
+    const rpcAvatarUrl = dbPost.avatar_url;
+    const rpcAvatarColor = dbPost.avatar_color;
+    const rpcAnonId = dbPost.author_id ? 'Anon' : 'Unknown'; // RPC might not select anon_id if not needed, or use ID
 
     let images: string[] = dbPost.images || [];
     let mainImageUrl = dbPost.image_url;
@@ -29,20 +36,22 @@ export const mapDbPostToPost = (dbPost: any): Post => {
 
     return {
         id: dbPost.id,
-        authorAnonId: profile?.anon_id || 'Unknown',
-        displayName: profile?.display_name || 'Anonymous',
-        authorAvatarColor: profile?.avatar_color || '#ccc',
-        authorAvatarUrl: profile?.avatar_url,
+        authorAnonId: profile?.anon_id || rpcAnonId,
+        displayName: profile?.display_name || rpcDisplayName || 'Anonymous',
+        authorAvatarColor: profile?.avatar_color || rpcAvatarColor || '#ccc',
+        authorAvatarUrl: profile?.avatar_url || rpcAvatarUrl,
         text: dbPost.text,
         imageUrl: mainImageUrl,
+        thumbPath: dbPost.thumb_path, // New field
         images: images,
-        department: dbPost.department,
+        department: dbPost.department, // Might be null in RPC
+        college: dbPost.college,
         tags: dbPost.tags || [],
         likesCount: dbPost.likes_count || 0,
         commentsCount: dbPost.comments_count || 0,
         createdAt: new Date(dbPost.created_at),
-        trendingScore: (dbPost.likes_count || 0) + (dbPost.comments_count * 2),
-        isLiked: dbPost.isLiked || false, // Will be set by getPosts after fetching user likes
+        trendingScore: (dbPost.likes_count || 0) + ((dbPost.comments_count || 0) * 2),
+        isLiked: dbPost.isLiked || false,
     };
 };
 

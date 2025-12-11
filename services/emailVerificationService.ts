@@ -18,6 +18,7 @@ const ALLOWED_COLLEGE_DOMAINS: string[] = [
     'krce.ac.in',       // K. Ramakrishnan College of Engineering
 
     // Indian Educational Institutions
+    'student.tce.edu',
     'iitm.ac.in',       // IIT Madras
     'iitb.ac.in',       // IIT Bombay
     'iitd.ac.in',       // IIT Delhi
@@ -47,9 +48,10 @@ const ALLOWED_COLLEGE_DOMAINS: string[] = [
  */
 export const DOMAIN_TO_COLLEGE_MAP: { [domain: string]: string } = {
     // Your College
-    'krce.ac.in': 'K. Ramakrishnan College of Engineering',
+    'krce.ac.in': 'KRCE',
 
     // Indian Institutions
+    'student.tce.edu': 'Thiyagarajar College of Engineering',
     'iitm.ac.in': 'IIT Madras',
     'iitb.ac.in': 'IIT Bombay',
     'iitd.ac.in': 'IIT Delhi',

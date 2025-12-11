@@ -13,8 +13,10 @@ export interface Post {
     authorAvatarUrl?: string;
     text: string;
     imageUrl?: string; // Kept for backward compatibility (represents the first image)
+    thumbPath?: string; // Optimized thumbnail path
     images?: string[]; // Array of all image URLs
     department?: string;
+    college?: string;
     tags: PostTag[];
     likesCount: number;
     commentsCount: number;

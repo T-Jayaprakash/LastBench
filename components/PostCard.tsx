@@ -5,6 +5,7 @@ import { HeartIcon, ChatBubbleOvalLeftIcon, ThreeDotsIcon } from './Icons';
 import * as api from '../services/api';
 
 import { linkifyText } from '../utils/textUtils';
+import LazyImage from './LazyImage';
 
 interface PostCardProps {
     post: Post;
@@ -190,13 +191,11 @@ const PostCard: React.FC<PostCardProps> = memo(({ post, currentUser, onCommentCl
                                 key={idx}
                                 className="w-full h-full flex-shrink-0 snap-center relative"
                             >
-                                <img
+                                <LazyImage
                                     src={imgUrl}
+                                    lowResSrc={idx === 0 ? post.thumbPath : undefined}
                                     alt={`Post content ${idx + 1}`}
                                     className="w-full h-full object-cover"
-                                    loading={index < 3 && idx === 0 ? "eager" : "lazy"}
-                                    decoding="async"
-                                    fetchPriority={index < 3 && idx === 0 ? "high" : "low"}
                                     onClick={() => onImageClick(postImages, idx)}
                                 />
                                 <div
