@@ -30,6 +30,8 @@ export default {
             animation: {
                 'pulse-subtle': 'pulse-subtle 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
                 'fade-in': 'fadeIn 0.5s ease-out forwards',
+                'slide-up-fade': 'slideUpFade 0.5s ease-out forwards',
+                'heart-pop': 'heartPop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
             },
             keyframes: {
                 'pulse-subtle': {
@@ -39,6 +41,15 @@ export default {
                 fadeIn: {
                     '0%': { opacity: 0, transform: 'translateY(10px)' },
                     '100%': { opacity: 1, transform: 'translateY(0)' },
+                },
+                slideUpFade: {
+                    '0%': { opacity: 0, transform: 'translateY(10px)' },
+                    '100%': { opacity: 1, transform: 'translateY(0)' },
+                },
+                heartPop: {
+                    '0%': { transform: 'scale(0)' },
+                    '50%': { transform: 'scale(1.2)' },
+                    '100%': { transform: 'scale(1)' },
                 }
             }
         },
