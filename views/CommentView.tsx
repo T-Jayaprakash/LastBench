@@ -83,7 +83,7 @@ const CommentItem: React.FC<CommentItemProps> = ({ comment, replies, allComments
                 <div className="flex-grow text-sm">
                     <div className="flex flex-col">
                         <p className="text-primary-text dark:text-dark-primary-text leading-snug">
-                            <span className="font-bold mr-2">{comment.authorAnonId}</span>
+                            <span className="font-bold mr-2">{comment.displayName || comment.authorAnonId}</span>
                             {comment.text}
                         </p>
                         <div className="flex items-center gap-3 mt-1 text-xs text-secondary-text dark:text-dark-secondary-text">
@@ -165,7 +165,8 @@ const CommentView: React.FC<CommentViewProps> = ({ post, onBack }) => {
                     id: newCommentRaw.id,
                     postId: newCommentRaw.post_id,
                     parentId: newCommentRaw.parent_id || null,
-                    authorAnonId: 'New User', // Placeholder - would need profile join
+                    authorAnonId: 'New User',
+                    displayName: 'New User', // Placeholder
                     authorAvatarColor: '#667eea',
                     authorAvatarUrl: undefined,
                     text: newCommentRaw.text,
@@ -303,7 +304,7 @@ const CommentView: React.FC<CommentViewProps> = ({ post, onBack }) => {
                 <div className="flex-shrink-0 bg-card-bg dark:bg-dark-card-bg border-t border-border-color dark:border-dark-border-color">
                     {replyingTo && (
                         <div className="px-4 py-2 bg-gray-100 dark:bg-gray-800 flex justify-between items-center text-xs text-secondary-text dark:text-dark-secondary-text">
-                            <span>Replying to <span className="font-bold">{replyingTo.authorAnonId}</span></span>
+                            <span>Replying to <span className="font-bold">{replyingTo.displayName || replyingTo.authorAnonId}</span></span>
                             <button onClick={() => { setReplyingTo(null); setNewComment(''); }} className="text-primary-text dark:text-dark-primary-text font-semibold">
                                 <XMarkIcon className="w-4 h-4" />
                             </button>
@@ -317,7 +318,7 @@ const CommentView: React.FC<CommentViewProps> = ({ post, onBack }) => {
                                 type="text"
                                 value={newComment}
                                 onChange={(e) => setNewComment(e.target.value)}
-                                placeholder={replyingTo ? `Reply to ${replyingTo.authorAnonId}...` : t.addCommentPlaceholder}
+                                placeholder={replyingTo ? `Reply to ${replyingTo.displayName || replyingTo.authorAnonId}...` : t.addCommentPlaceholder}
                                 className="flex-grow bg-gray-100 dark:bg-dark-border-color border border-border-color dark:border-dark-border-color rounded-full py-2 px-4 text-sm focus:outline-none focus:ring-1 focus:ring-accent-primary"
                                 aria-label="Add a comment"
                             />

@@ -10,10 +10,10 @@ import { registerPushSubscription } from '../services/userService';
 import { useSupabaseRealtime } from '../src/hooks/useSupabaseRealtime';
 import { mergeRealtimeEvent } from '../src/utils/realtimeUtils';
 
-const PULL_THRESHOLD = 100;
-const AUTO_REFRESH_INTERVAL = 20000; // 20 seconds - More frequent like Instagram
-const INITIAL_LOAD_COUNT = 20; // Load first 20 posts instantly
-const PAGINATION_SIZE = 20; // Load 20 more posts when scrolling
+const PULL_THRESHOLD = 120; // Increased threshold for better feel
+const AUTO_REFRESH_INTERVAL = 15000; // 15 seconds
+const INITIAL_LOAD_COUNT = 50; // Load 50 posts initially to fix "only 6 posts" issue
+const PAGINATION_SIZE = 50; // Load 50 more posts when scrolling
 const SCROLL_DEBOUNCE = 100; // Debounce scroll events for performance
 
 interface HomeFeedProps {
@@ -384,16 +384,40 @@ const HomeFeed: React.FC<HomeFeedProps> = ({ user, onCommentClick, onOptionsClic
     }, [isRefreshing]);
 
     // Pull-to-refresh disabled as requested ("remove the refresh option")
+    // Pull-to-refresh implementation (Instagram style)
     const handleTouchStart = (e: React.TouchEvent) => {
-        // Disabled
+        if (feedContainerRef.current?.scrollTop === 0) {
+            setTouchStartY(e.touches[0].clientY);
+            setIsReadyToRefresh(true);
+        } else {
+            setIsReadyToRefresh(false);
+        }
     };
 
     const handleTouchMove = (e: React.TouchEvent) => {
-        // Disabled
+        if (!isReadyToRefresh || touchStartY === null) return;
+
+        const currentY = e.touches[0].clientY;
+        const delta = currentY - touchStartY;
+
+        if (delta > 0) {
+            // Resistance effect
+            e.preventDefault(); // Prevent standard scroll while pulling
+            setPullDelta(delta);
+        }
     };
 
     const handleTouchEnd = () => {
-        // Disabled
+        if (!isReadyToRefresh) return;
+
+        if (pullDelta > PULL_THRESHOLD) {
+            handleRefresh();
+        } else {
+            // Snap back
+            setPullDelta(0);
+        }
+        setTouchStartY(null);
+        setIsReadyToRefresh(false);
     };
 
     const showPill = pullDelta > 10 || isRefreshing;
@@ -415,7 +439,20 @@ const HomeFeed: React.FC<HomeFeedProps> = ({ user, onCommentClick, onOptionsClic
                 onTouchMove={handleTouchMove}
                 onTouchEnd={handleTouchEnd}
             >
-                {/* Pull indicator removed */}
+                {/* Pull to Refresh Spinner (Instagram Style) */}
+                <div
+                    className="absolute left-0 right-0 flex justify-center z-10 pointers-events-none"
+                    style={{
+                        top: '10px',
+                        transform: `translateY(${pillTranslateY}px) rotate(${rotation}deg)`,
+                        opacity: showPill ? 1 : 0,
+                        transition: isRefreshing ? 'top 0.3s ease' : 'none'
+                    }}
+                >
+                    <div className="bg-white dark:bg-gray-800 rounded-full p-2 shadow-lg border border-gray-100 dark:border-gray-700">
+                        <ArrowPathIcon className={`w-6 h-6 text-accent-primary ${isRefreshing ? 'animate-spin' : ''}`} />
+                    </div>
+                </div>
 
                 <div
                     style={{

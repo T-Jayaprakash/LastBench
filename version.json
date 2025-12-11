@@ -1,7 +1,7 @@
 {
-    "latestVersion": "2.9.1",
+    "latestVersion": "2.10.0",
     "minSupportedVersion": "2.8.0",
     "updateUrl": "https://t-jayaprakash.github.io/LastBench/",
     "forceUpdate": false,
-    "message": "🔔 TEST UPDATE: The Auto-Update System is WORKING! 🚀 If you see this, the test was successful."
+    "message": "Major Update! Added Instagram-style pull-to-refresh, password visibility toggle, and fixed feed loading issues. Update now!"
 }

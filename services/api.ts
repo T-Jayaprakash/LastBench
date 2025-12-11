@@ -76,6 +76,7 @@ const mapDbCommentToComment = (dbComment: any): Comment => {
         postId: dbComment.post_id,
         parentId: dbComment.parent_id || null,
         authorAnonId: profile?.anon_id || 'Unknown',
+        displayName: profile?.display_name || 'Anonymous', // Added
         authorAvatarColor: profile?.avatar_color || '#ccc',
         authorAvatarUrl: profile?.avatar_url,
         text: dbComment.text,

@@ -39,6 +39,7 @@ export interface Comment {
     postId: string;
     parentId?: string | null;
     authorAnonId: string;
+    displayName?: string; // Added for consistency
     authorAvatarColor: string;
     authorAvatarUrl?: string;
     text: string;
