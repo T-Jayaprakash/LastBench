@@ -1,7 +1,13 @@
 {
-    "latestVersion": "2.10.6",
-    "minSupportedVersion": "2.8.0",
-    "updateUrl": "https://t-jayaprakash.github.io/LastBench/",
-    "forceUpdate": true,
-    "message": "Feature Update! We made links in posts clickable. Update to v2.10.6 to see it in action!"
+  "version": "2.11.0",
+  "buildDate": "2026-02-01T16:40:00Z",
+  "buildNumber": 1738428000,
+  "features": [
+    "Production-grade push notification system",
+    "Multi-device FCM support",
+    "Instagram-style notification batching",
+    "Rate limiting and spam control",
+    "Deep linking navigation",
+    "User notification preferences"
+  ]
 }
