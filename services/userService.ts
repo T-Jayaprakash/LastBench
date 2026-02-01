@@ -46,98 +46,28 @@ function urlBase64ToUint8Array(base64String: string) {
     return outputArray;
 }
 
-import { PushNotifications } from '@capacitor/push-notifications';
-import { Capacitor } from '@capacitor/core';
+import { initializeFCM } from './fcmService';
 
+/**
+ * Register push notifications using the new FCM service
+ * WHY: Centralized FCM handling with better error handling and multi-device support
+ */
 export const registerPushSubscription = async () => {
     const user = await getCurrentUser();
-    if (!user || !user.college) return;
-
-    // 1. Try Native Push (Android/iOS)
-    if (Capacitor.isNativePlatform()) {
-        try {
-            await PushNotifications.requestPermissions();
-            const permStatus = await PushNotifications.checkPermissions();
-
-            if (permStatus.receive === 'granted') {
-                await PushNotifications.register();
-
-                // Listen for registration
-                PushNotifications.addListener('registration', async (token) => {
-                    // Save FCM token to Supabase
-                    const { error } = await supabase.from('push_subscriptions').upsert({
-                        user_id: user.userId,
-                        college: user.college,
-                        token: token.value, // Native token
-                        platform: Capacitor.getPlatform(),
-                        updated_at: new Date().toISOString()
-                    }, { onConflict: 'user_id, token' });
-
-                    if (error) console.error("Failed to save native push token:", error);
-                    else console.log("Native push token saved!");
-                });
-
-                PushNotifications.addListener('registrationError', (error) => {
-                    console.error('Push registration error: ', error);
-                    // Alert the user so they know why it's not working
-                    alert(`Push Notification Setup Failed: ${JSON.stringify(error)}. Did you replace google-services.json?`);
-                });
-            }
-        } catch (e) {
-            console.error("Native push setup failed:", e);
-        }
-        return;
-    }
-
-    // 2. Fallback to Web Push (PWA)
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    if (!user || !user.college) {
+        console.warn('Cannot register push: User not logged in or no college set');
         return;
     }
 
     try {
-        const registration = await navigator.serviceWorker.ready;
-        let subscription = await registration.pushManager.getSubscription();
-
-        if (!subscription) {
-            try {
-                // Validate VAPID key format before attempting subscription
-                if (!VAPID_PUBLIC_KEY || VAPID_PUBLIC_KEY.includes('post_your_own')) {
-                    console.warn("Invalid VAPID key detected. Skipping web push subscription.");
-                    return;
-                }
-
-                const applicationServerKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
-                subscription = await registration.pushManager.subscribe({
-                    userVisibleOnly: true,
-                    applicationServerKey
-                });
-            } catch (e) {
-                console.warn("Push subscription failed (likely invalid VAPID key).", e);
-                return;
-            }
+        const success = await initializeFCM();
+        if (success) {
+            console.log('✅ Push notifications registered successfully');
+        } else {
+            console.warn('⚠️ Push notification registration failed or was denied');
         }
-
-        if (!subscription) return;
-
-        const subJson = subscription.toJSON();
-        if (!subJson.keys || !subJson.endpoint) return;
-
-        const { error } = await supabase.from('push_subscriptions').upsert({
-            user_id: user.userId,
-            college: user.college,
-            endpoint: subJson.endpoint,
-            p256dh: subJson.keys.p256dh,
-            auth: subJson.keys.auth,
-            platform: 'web',
-            updated_at: new Date().toISOString()
-        }, { onConflict: 'user_id, endpoint' });
-
-        if (error) {
-            console.error("Failed to save web push subscription:", error);
-        }
-
     } catch (error) {
-        console.error("Error registering web push:", error);
+        console.error('❌ Error registering push notifications:', error);
     }
 };
 
