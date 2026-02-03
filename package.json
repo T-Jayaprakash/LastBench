@@ -16,6 +16,7 @@
     "@capacitor/push-notifications": "^7.0.3",
     "@supabase/supabase-js": "^2.84.0",
     "firebase": "^12.8.0",
+    "firebase-admin": "^13.6.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },

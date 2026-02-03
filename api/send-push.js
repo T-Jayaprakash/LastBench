@@ -1,13 +1,17 @@
 import { initializeApp, cert, getApps } from 'firebase-admin/app';
 import { getMessaging } from 'firebase-admin/messaging';
 import { getFirestore } from 'firebase-admin/firestore';
+import { createClient } from '@supabase/supabase-js';
 
-// Environment variables for credentials
+// --- CONFIGURATION ---
 const serviceAccount = {
     projectId: process.env.FIREBASE_PROJECT_ID,
     clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
     privateKey: process.env.FIREBASE_PRIVATE_KEY ? process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n') : undefined,
 };
+
+const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!getApps().length) {
     initializeApp({
@@ -17,6 +21,7 @@ if (!getApps().length) {
 
 const db = getFirestore();
 const messaging = getMessaging();
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 export default async function handler(req, res) {
     // CORS Headers
@@ -44,21 +49,30 @@ export default async function handler(req, res) {
     }
 
     try {
-        // 1. Fetch Post to find Owner
-        const postSnap = await db.collection('posts').doc(postId).get();
-        if (!postSnap.exists) return res.status(404).json({ error: 'Post not found' });
+        // 1. Fetch Post to find Owner from Supabase
+        const { data: post, error: postError } = await supabase
+            .from('posts')
+            .select('author_id')
+            .eq('id', postId)
+            .single();
 
-        const post = postSnap.data();
+        if (postError || !post) {
+            console.error('Post lookup failed:', postError);
+            return res.status(404).json({ error: 'Post not found or database error' });
+        }
+
         const authorId = post.author_id;
 
         if (authorId === actorUserId) return res.status(200).json({ skipped: true, reason: 'self_action' });
 
-        // 2. Fetch Actor Profile
-        const profileSnap = await db.collection('profiles').where('user_id', '==', actorUserId).get();
-        let actorName = "Someone";
-        if (!profileSnap.empty) {
-            actorName = profileSnap.docs[0].data().display_name || "Someone";
-        }
+        // 2. Fetch Actor Profile from Supabase
+        const { data: actorProfile } = await supabase
+            .from('profiles')
+            .select('display_name')
+            .eq('id', actorUserId)
+            .single();
+
+        const actorName = actorProfile?.display_name || "Someone";
 
         // 3. Construct Message
         let title = "New Notification";

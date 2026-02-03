@@ -75,7 +75,7 @@ const CONFIG = {
 
     // Get app version from package.json or environment
     getAppVersion: (): string => {
-        return process.env.VITE_APP_VERSION || '2.10.6';
+        return import.meta.env.VITE_APP_VERSION || '2.12.0';
     },
 };
 
