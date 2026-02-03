@@ -30,6 +30,7 @@ Thumbs.db
 # Secrets (CRITICAL)
 server/service-account.json
 server/.env
+.env
 android/app/google-services.json
 ios/App/App/GoogleService-Info.plist
 my-release-key.keystore

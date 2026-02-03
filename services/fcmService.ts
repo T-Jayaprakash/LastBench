@@ -29,6 +29,9 @@ import { PushNotifications, Token, PushNotificationSchema, ActionPerformed } fro
 import { Capacitor } from '@capacitor/core';
 import { supabase } from './supabaseClient';
 import { getCurrentUser } from './userService';
+import { messaging, db } from './firebase';
+import { getToken } from 'firebase/messaging';
+import { doc, setDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
 
 // ============================================================================
 // TYPES
@@ -108,27 +111,17 @@ async function saveFCMToken(token: string, platform: 'android' | 'ios' | 'web'):
             return false;
         }
 
-        const tokenData: Partial<FCMToken> = {
-            user_id: user.userId,
+        // Firestore path: users/{userId}/fcmTokens/{token}
+        const tokenRef = doc(db, 'users', user.userId, 'fcmTokens', token);
+        await setDoc(tokenRef, {
             token: token,
-            device_id: CONFIG.getDeviceId(),
             platform: platform,
-            app_version: CONFIG.getAppVersion(),
-            is_active: true,
-        };
+            deviceId: CONFIG.getDeviceId(),
+            appVersion: CONFIG.getAppVersion(),
+            updatedAt: serverTimestamp(),
+        });
 
-        const { error } = await supabase
-            .from('fcm_tokens')
-            .upsert(tokenData, {
-                onConflict: 'user_id,token',
-            });
-
-        if (error) {
-            log.error('Failed to save FCM token:', error);
-            return false;
-        }
-
-        log.success(`FCM token saved successfully (${platform})`);
+        log.success(`FCM token saved to Firestore (${platform})`);
         return true;
     } catch (error) {
         log.error('Exception saving FCM token:', error);
@@ -142,15 +135,14 @@ async function saveFCMToken(token: string, platform: 'android' | 'ios' | 'web'):
  */
 async function removeFCMToken(token: string): Promise<void> {
     try {
-        const { error } = await supabase
-            .from('fcm_tokens')
-            .update({ is_active: false })
-            .eq('token', token);
-
-        if (error) {
-            log.error('Failed to remove FCM token:', error);
-        } else {
-            log.info('FCM token removed successfully');
+        // We can't easily query by token without user ID in this structure, 
+        // but typically clean up happens with user context. 
+        // For now, we'll try to get current user.
+        const user = await getCurrentUser();
+        if (user) {
+            const tokenRef = doc(db, 'users', user.userId, 'fcmTokens', token);
+            await deleteDoc(tokenRef);
+            log.info('FCM token removed from Firestore');
         }
     } catch (error) {
         log.error('Exception removing FCM token:', error);
@@ -381,61 +373,37 @@ async function initializeNativePush(): Promise<boolean> {
  */
 async function initializeWebPush(): Promise<boolean> {
     try {
-        if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-            log.warning('Web push not supported in this browser');
-            return false;
-        }
+        log.info('Initializing Firebase Web Push...');
 
-        log.info('Initializing web push notifications...');
-
-        // Request permission
         const permission = await Notification.requestPermission();
-
         if (permission !== 'granted') {
             log.warning('Web push permission denied');
             return false;
         }
 
-        // Get service worker registration
-        const registration = await navigator.serviceWorker.ready;
-
-        // Check if already subscribed
-        let subscription = await registration.pushManager.getSubscription();
-
-        if (!subscription) {
-            // Subscribe to push notifications
-            // NOTE: You need to generate VAPID keys for production
-            // Use: npx web-push generate-vapid-keys
-            const VAPID_PUBLIC_KEY = process.env.VITE_VAPID_PUBLIC_KEY;
-
-            if (!VAPID_PUBLIC_KEY || VAPID_PUBLIC_KEY.includes('your_key_here')) {
-                log.warning('VAPID key not configured. Web push disabled.');
-                return false;
-            }
-
-            const applicationServerKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
-
-            subscription = await registration.pushManager.subscribe({
-                userVisibleOnly: true,
-                applicationServerKey: applicationServerKey as BufferSource,
-            });
+        const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY;
+        if (!VAPID_PUBLIC_KEY) {
+            log.warning('VAPID key not configured (VITE_VAPID_PUBLIC_KEY).');
+            return false;
         }
 
-        if (subscription) {
-            // Save subscription to backend
-            const subJson = subscription.toJSON();
-            const token = subJson.endpoint || '';
+        // Get Token via Firebase SDK
+        const token = await getToken(messaging, {
+            vapidKey: VAPID_PUBLIC_KEY
+        });
 
-            if (token) {
-                await saveFCMToken(token, 'web');
-                log.success('Web push subscription saved');
-                return true;
-            }
+        if (token) {
+            await saveFCMToken(token, 'web');
+            log.success('Firebase Web Push Initialized & Token Saved');
+            return true;
         }
 
         return false;
-    } catch (error) {
+    } catch (error: any) {
         log.error('Failed to initialize web push:', error);
+        if (error.code === 'messaging/unsupported-browser') {
+            log.warning("This browser doesn't support FCM.");
+        }
         return false;
     }
 }

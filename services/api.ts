@@ -407,6 +407,18 @@ const toggleInteraction = async (postId: string, type: 'like'): Promise<number> 
             }
 
             console.log(`✅ Like successful. New count: ${newCount}`);
+
+            // --- NOTIFICATION TRIGGER (Vercel API) ---
+            fetch('/api/send-push', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    type: 'like',
+                    actorUserId: user.userId,
+                    postId: postId
+                })
+            }).catch(e => console.error('Push trigger failed', e));
+            // -----------------------------------------
         }
 
         return newCount;
@@ -644,6 +656,19 @@ export const addComment = async (postId: string, text: string, parentId?: string
         const { data: post } = await supabase.from('posts').select('comments_count').eq('id', postId).single();
         const currentCount = post ? post.comments_count : 0;
         await supabase.from('posts').update({ comments_count: currentCount + 1 }).eq('id', postId);
+
+        // --- NOTIFICATION TRIGGER (Vercel API) ---
+        fetch('/api/send-push', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                type: 'comment',
+                actorUserId: user.userId,
+                postId: postId,
+                data: { text: text }
+            })
+        }).catch(e => console.error('Push trigger failed', e));
+        // -----------------------------------------
 
         return mapDbCommentToComment(data);
     } catch (err) {

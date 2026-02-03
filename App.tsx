@@ -116,6 +116,9 @@ const AppContent: React.FC = () => {
 
                     markVersionChecked();
                 }
+
+                // Initialize FCM on load
+                userService.registerPushSubscription();
             } catch (e) {
                 console.error("Auth check failed", e);
                 setUser(null);
