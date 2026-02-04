@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { User } from '../types/index';
 import { t } from '../constants/locales';
 import { COLLEGES, DEPARTMENTS, AVATAR_COLORS } from '../constants/config';
-import { ArrowPathIcon } from '../components/Icons';
+import { ArrowPathIcon, CheckIcon } from '../components/Icons';
 import * as userService from '../services/userService';
 import * as emailVerificationService from '../services/emailVerificationService';
 import { auth } from '../services/firebase';
@@ -24,7 +24,6 @@ const OnboardingView: React.FC<OnboardingViewProps> = ({ user, onComplete }) => 
     const [errors, setErrors] = useState<{ [key: string]: string | null }>({});
     const [availableColleges, setAvailableColleges] = useState<string[]>(COLLEGES);
 
-    // Auto-detect college from user's email using Firebase Auth
     useEffect(() => {
         const getUserEmail = async () => {
             try {
@@ -32,9 +31,7 @@ const OnboardingView: React.FC<OnboardingViewProps> = ({ user, onComplete }) => 
                 if (currentUser?.email) {
                     const detectedCollege = emailVerificationService.getCollegeFromEmail(currentUser.email);
                     if (detectedCollege) {
-                        // Auto-fill college
                         setCollege(detectedCollege);
-                        console.log(`✅ Auto-detected college from email: ${detectedCollege}`);
                     }
                 }
             } catch (e) {
@@ -44,12 +41,10 @@ const OnboardingView: React.FC<OnboardingViewProps> = ({ user, onComplete }) => 
         getUserEmail();
     }, []);
 
-    // Load existing colleges from DB to populate the list dynamically
     useEffect(() => {
         const loadColleges = async () => {
             try {
                 const dbColleges = await userService.getExistingColleges();
-                // Combine static list with DB list, remove duplicates, and sort
                 const uniqueColleges = Array.from(new Set([...COLLEGES, ...dbColleges])).sort();
                 setAvailableColleges(uniqueColleges);
             } catch (e) {
@@ -96,8 +91,6 @@ const OnboardingView: React.FC<OnboardingViewProps> = ({ user, onComplete }) => 
         if (!displayName.trim() || !finalCollege || !department || isSaving || Object.values(errors).some(e => e)) return;
 
         setIsSaving(true);
-
-        // Proceed immediately without delay
         onComplete({
             displayName: displayName.trim(),
             avatarColor,
@@ -108,88 +101,130 @@ const OnboardingView: React.FC<OnboardingViewProps> = ({ user, onComplete }) => 
 
     const isSubmitDisabled = !displayName.trim() || (isOtherCollege ? !customCollege.trim() : !college) || !department || isSaving || Object.values(errors).some(e => e);
 
-
     return (
-        <div className="flex flex-col items-center justify-center min-h-screen bg-background dark:bg-dark-background p-6 animate-fade-in">
-            <h1 className="text-4xl font-bold text-primary-text dark:text-dark-primary-text mb-2">{t.onboardingTitle}</h1>
-            <p className="mb-8 text-lg text-secondary-text dark:text-dark-secondary-text">{t.onboardingSubtitle}</p>
+        <div className="flex flex-col items-center justify-center min-h-screen bg-background dark:bg-dark-background relative overflow-hidden">
+            {/* Animated background */}
+            <div className="absolute inset-0 opacity-20 dark:opacity-10">
+                <div
+                    className="absolute inset-0 animate-aurora"
+                    style={{
+                        backgroundImage: 'radial-gradient(circle at 50% 50%, rgba(139, 92, 246, 0.3) 0%, transparent 60%)',
+                        backgroundSize: '100% 100%',
+                    }}
+                />
+            </div>
 
-            <div className="w-full max-w-sm flex flex-col items-center gap-6">
-                {/* Avatar */}
-                <div className="flex flex-col items-center gap-2">
-                    <div
-                        className="w-28 h-28 rounded-full flex items-center justify-center text-5xl font-bold text-white dark:text-dark-background cursor-pointer transition-transform duration-200 active:scale-95"
-                        style={{ backgroundColor: avatarColor }}
-                        onClick={handleAvatarClick}
-                    >
-                        {(displayName || 'A').charAt(0).toUpperCase()}
-                    </div>
-                    <span className="text-xs text-secondary-text dark:text-dark-secondary-text">{t.avatarLabel}</span>
-                </div>
+            <div className="relative z-10 w-full max-w-sm px-8 animate-fade-in-up">
+                <h1 className="text-4xl font-bold font-logo gradient-text text-center mb-2">Welcome!</h1>
+                <p className="text-center text-secondary-text dark:text-dark-secondary-text mb-8">Let's set up your profile</p>
 
-                {/* Form Fields */}
-                <div className="w-full flex flex-col gap-4">
-                    <div>
-                        <label htmlFor="username" className="text-sm font-medium text-secondary-text dark:text-dark-secondary-text">{t.usernameLabel}</label>
-                        <input
-                            id="username"
-                            type="text"
-                            value={displayName}
-                            onChange={(e) => setDisplayName(e.target.value)}
-                            className={`mt-1 w-full bg-gray-100 dark:bg-dark-border-color border rounded-lg py-3 px-4 text-base focus:outline-none focus:ring-2 focus:ring-accent-primary transition-colors ${errors.displayName ? 'border-red-500 focus:ring-red-500' : 'border-border-color dark:border-dark-border-color'}`}
-                        />
-                        {errors.displayName && <p className="text-red-500 text-xs mt-1 animate-fade-in">{errors.displayName}</p>}
-                    </div>
-                    <div>
-                        <label htmlFor="college" className="text-sm font-medium text-secondary-text dark:text-dark-secondary-text">{t.collegeLabel}</label>
-                        <select
-                            id="college"
-                            value={college}
-                            onChange={(e) => {
-                                const val = e.target.value;
-                                setCollege(val);
-                                setIsOtherCollege(val === 'Other');
-                            }}
-                            className={`mt-1 w-full bg-gray-100 dark:bg-dark-border-color border rounded-lg py-3 px-4 text-base focus:outline-none focus:ring-2 focus:ring-accent-primary appearance-none transition-colors ${errors.college && !isOtherCollege ? 'border-red-500 focus:ring-red-500' : 'border-border-color dark:border-dark-border-color'}`}
+                <div className="flex flex-col items-center gap-8">
+                    {/* Avatar */}
+                    <div className="flex flex-col items-center gap-3 group">
+                        <div
+                            className="w-32 h-32 rounded-full flex items-center justify-center text-5xl font-bold text-white shadow-2xl transition-all duration-300 transform group-hover:scale-105 cursor-pointer relative overflow-hidden"
+                            style={{ backgroundColor: avatarColor }}
+                            onClick={handleAvatarClick}
                         >
-                            <option value="" disabled>Select your college</option>
-                            {availableColleges.map(c => <option key={c} value={c}>{c}</option>)}
-                            <option value="Other">Other...</option>
-                        </select>
-                        {isOtherCollege && (
+                            <span className="relative z-10">{(displayName || 'A').charAt(0).toUpperCase()}</span>
+                            <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                <span className="text-xs font-medium uppercase tracking-wider text-white">Change</span>
+                            </div>
+                        </div>
+                        <span className="text-xs font-medium text-secondary-text dark:text-dark-secondary-text uppercase tracking-wider">Tap to change color</span>
+                    </div>
+
+                    {/* Form Fields */}
+                    <div className="w-full flex flex-col gap-5">
+                        <div className="space-y-1">
+                            <label htmlFor="username" className="text-xs font-bold uppercase tracking-wider text-secondary-text dark:text-dark-secondary-text ml-1">Username</label>
                             <input
+                                id="username"
                                 type="text"
-                                value={customCollege}
-                                onChange={e => setCustomCollege(e.target.value)}
-                                placeholder="Enter your college name"
-                                className={`mt-2 w-full bg-gray-100 dark:bg-dark-border-color border rounded-lg py-3 px-4 text-base focus:outline-none focus:ring-2 focus:ring-accent-primary transition-colors ${errors.college && isOtherCollege ? 'border-red-500 focus:ring-red-500' : 'border-border-color dark:border-dark-border-color'}`}
-                                autoFocus
+                                value={displayName}
+                                onChange={(e) => setDisplayName(e.target.value)}
+                                className={`w-full bg-white/80 dark:bg-white/5 backdrop-blur-sm border rounded-xl py-4 px-5 text-base focus:outline-none focus:ring-2 transition-all duration-300 ${errors.displayName
+                                        ? 'border-red-400 focus:ring-red-500/50'
+                                        : 'border-gray-200 dark:border-white/10 focus:ring-violet-500/50'
+                                    }`}
                             />
-                        )}
-                        {errors.college && <p className="text-red-500 text-xs mt-1 animate-fade-in">{errors.college}</p>}
-                    </div>
-                    <div>
-                        <label htmlFor="department" className="text-sm font-medium text-secondary-text dark:text-dark-secondary-text">{t.departmentLabel}</label>
-                        <select
-                            id="department"
-                            value={department}
-                            onChange={(e) => setDepartment(e.target.value)}
-                            className={`mt-1 w-full bg-gray-100 dark:bg-dark-border-color border rounded-lg py-3 px-4 text-base focus:outline-none focus:ring-2 focus:ring-accent-primary appearance-none transition-colors ${errors.department ? 'border-red-500 focus:ring-red-500' : 'border-border-color dark:border-dark-border-color'}`}
-                        >
-                            <option value="" disabled>Select your department</option>
-                            {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
-                        </select>
-                        {errors.department && <p className="text-red-500 text-xs mt-1 animate-fade-in">{errors.department}</p>}
-                    </div>
-                </div>
+                            {errors.displayName && <p className="text-red-500 text-xs ml-1 font-medium">{errors.displayName}</p>}
+                        </div>
 
-                <button
-                    onClick={handleSubmit}
-                    disabled={isSubmitDisabled}
-                    className="w-full bg-accent-primary hover:bg-accent-secondary text-white font-bold py-3 px-4 rounded-lg transition-colors disabled:bg-gray-400 dark:disabled:bg-gray-500 disabled:cursor-not-allowed flex items-center justify-center space-x-2 mt-4"
-                >
-                    {isSaving ? <ArrowPathIcon className="w-5 h-5 animate-spin" /> : <span>{t.getStarted}</span>}
-                </button>
+                        <div className="space-y-1">
+                            <label htmlFor="college" className="text-xs font-bold uppercase tracking-wider text-secondary-text dark:text-dark-secondary-text ml-1">College</label>
+                            <div className="relative">
+                                <select
+                                    id="college"
+                                    value={college}
+                                    onChange={(e) => {
+                                        const val = e.target.value;
+                                        setCollege(val);
+                                        setIsOtherCollege(val === 'Other');
+                                    }}
+                                    className={`w-full bg-white/80 dark:bg-white/5 backdrop-blur-sm border rounded-xl py-4 px-5 text-base appearance-none focus:outline-none focus:ring-2 transition-all duration-300 ${errors.college && !isOtherCollege
+                                            ? 'border-red-400 focus:ring-red-500/50'
+                                            : 'border-gray-200 dark:border-white/10 focus:ring-violet-500/50'
+                                        }`}
+                                >
+                                    <option value="" disabled>Select your college</option>
+                                    {availableColleges.map(c => <option key={c} value={c}>{c}</option>)}
+                                    <option value="Other">Other...</option>
+                                </select>
+                                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
+                                    <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                    </svg>
+                                </div>
+                            </div>
+
+                            {isOtherCollege && (
+                                <input
+                                    type="text"
+                                    value={customCollege}
+                                    onChange={e => setCustomCollege(e.target.value)}
+                                    placeholder="Enter college name"
+                                    className="mt-3 w-full bg-white/80 dark:bg-white/5 backdrop-blur-sm border border-gray-200 dark:border-white/10 rounded-xl py-4 px-5 text-base focus:outline-none focus:ring-2 focus:ring-violet-500/50 animate-fade-in"
+                                    autoFocus
+                                />
+                            )}
+                            {errors.college && <p className="text-red-500 text-xs ml-1 font-medium">{errors.college}</p>}
+                        </div>
+
+                        <div className="space-y-1">
+                            <label htmlFor="department" className="text-xs font-bold uppercase tracking-wider text-secondary-text dark:text-dark-secondary-text ml-1">Department</label>
+                            <div className="relative">
+                                <select
+                                    id="department"
+                                    value={department}
+                                    onChange={(e) => setDepartment(e.target.value)}
+                                    className={`w-full bg-white/80 dark:bg-white/5 backdrop-blur-sm border rounded-xl py-4 px-5 text-base appearance-none focus:outline-none focus:ring-2 transition-all duration-300 ${errors.department
+                                            ? 'border-red-400 focus:ring-red-500/50'
+                                            : 'border-gray-200 dark:border-white/10 focus:ring-violet-500/50'
+                                        }`}
+                                >
+                                    <option value="" disabled>Select your department</option>
+                                    {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+                                </select>
+                                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
+                                    <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                    </svg>
+                                </div>
+                            </div>
+                            {errors.department && <p className="text-red-500 text-xs ml-1 font-medium">{errors.department}</p>}
+                        </div>
+                    </div>
+
+                    <button
+                        onClick={handleSubmit}
+                        disabled={isSubmitDisabled}
+                        className="w-full bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white font-bold py-4 px-6 rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-violet-500/25 hover:shadow-xl hover:shadow-violet-500/30 active:scale-[0.98] mt-4 flex items-center justify-center gap-2"
+                    >
+                        {isSaving ? <ArrowPathIcon className="w-5 h-5 animate-spin" /> : <span>Start Exploring</span>}
+                        {!isSaving && <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>}
+                    </button>
+                </div>
             </div>
         </div>
     );

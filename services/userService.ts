@@ -1,6 +1,6 @@
 /**
  * ============================================================================
- * USER SERVICE - Firebase Auth & Firestore User Management
+ * USER SERVICE - Firebase Auth & Realtime Database User Management
  * ============================================================================
  * 
  * Handles all user authentication, profile management, and session handling
@@ -9,7 +9,7 @@
  * Features:
  * - Email/Password authentication with Firebase Auth
  * - College email validation
- * - Profile persistence in Firestore
+ * - Profile persistence in Realtime Database
  * - Session caching for offline support
  * - Avatar upload to Firebase Storage
  * - Multi-device FCM token management
@@ -26,18 +26,18 @@ import {
     UserCredential
 } from 'firebase/auth';
 import {
-    doc,
-    getDoc,
-    setDoc,
-    updateDoc,
-    serverTimestamp
-} from 'firebase/firestore';
+    ref as dbRef,
+    get,
+    set,
+    update,
+    serverTimestamp as rtdbServerTimestamp
+} from 'firebase/database';
 import {
-    ref,
+    ref as storageRef,
     uploadBytes,
     getDownloadURL
 } from 'firebase/storage';
-import { auth, db, storage } from './firebase';
+import { auth, rtdb, storage } from './firebase';
 import { User } from '../types/index';
 import { AVATAR_COLORS } from '../constants/config';
 import { isCollegeEmail, getCollegeFromEmail } from './emailVerificationService';
@@ -49,8 +49,7 @@ import { initializeFCM } from './fcmService';
 
 const getRandomElement = <T,>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
 
-const PROFILE_FIELDS = ['id', 'anon_id', 'display_name', 'avatar_color', 'college', 'department', 'has_onboarded', 'avatar_url'];
-const USER_STORAGE_KEY = 'genfess_user_cache_v2';
+const USER_STORAGE_KEY = 'genfess_user_cache_v3';
 const CACHE_TTL = 300000; // 5 minutes
 
 // ============================================================================
@@ -66,18 +65,18 @@ let lastFetchTime = 0;
 // ============================================================================
 
 /**
- * Map Firestore profile document to User type
+ * Map Realtime Database profile to User type
  */
-const mapDocToUser = (docData: any, uid: string): User => {
+const mapDataToUser = (data: any, uid: string): User => {
     return {
         userId: uid,
-        anonId: docData.anon_id || `Student#${uid.substring(0, 4)}`,
-        displayName: docData.display_name || '',
-        department: docData.department || '',
-        college: docData.college || '',
-        avatarColor: docData.avatar_color || AVATAR_COLORS[0],
-        avatarUrl: docData.avatar_url,
-        hasOnboarded: docData.has_onboarded || false,
+        anonId: data.anon_id || `Student#${uid.substring(0, 4)}`,
+        displayName: data.display_name || '',
+        department: data.department || '',
+        college: data.college || '',
+        avatarColor: data.avatar_color || AVATAR_COLORS[0],
+        avatarUrl: data.avatar_url,
+        hasOnboarded: data.has_onboarded || false,
     };
 };
 
@@ -100,6 +99,8 @@ export const signUpUser = async (email: string, password: string): Promise<User 
         const college = getCollegeFromEmail(email) || 'Unknown College';
 
         const anonId = `Student#${Math.floor(Math.random() * 9000) + 1000}`;
+        const timestamp = Date.now();
+
         const newProfile = {
             anon_id: anonId,
             display_name: email.split('@')[0],
@@ -108,14 +109,17 @@ export const signUpUser = async (email: string, password: string): Promise<User 
             email: email,
             college: college,
             department: '',
-            created_at: serverTimestamp(),
-            updated_at: serverTimestamp(),
+            created_at: timestamp,
+            updated_at: timestamp,
         };
 
-        // Create user profile in Firestore (using UID as doc ID)
-        await setDoc(doc(db, 'profiles', fbUser.uid), newProfile);
+        // Create user profile in Realtime Database
+        const profileRef = dbRef(rtdb, `profiles/${fbUser.uid}`);
+        await set(profileRef, newProfile);
 
-        const user = mapDocToUser(newProfile, fbUser.uid);
+        console.log('✅ Profile created in Realtime DB:', fbUser.uid);
+
+        const user = mapDataToUser(newProfile, fbUser.uid);
 
         // Cache the user
         currentUserCache = user;
@@ -148,25 +152,35 @@ export const loginUser = async (email: string, password: string): Promise<User |
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
         const user = await getUserProfile(userCredential.user.uid);
 
-        if (user) {
-            // Cache the user
-            currentUserCache = user;
-            currentAuthIdCache = userCredential.user.uid;
-            lastFetchTime = Date.now();
-            localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
+        if (!user) {
+            throw new Error('User profile not found. Please contact support or try signing up again.');
         }
+
+        // Cache the user
+        currentUserCache = user;
+        currentAuthIdCache = userCredential.user.uid;
+        lastFetchTime = Date.now();
+        localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
 
         return user;
     } catch (error: any) {
         console.error("Error logging in:", error);
 
         // Provide user-friendly error messages
-        if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
-            throw new Error('Invalid email or password.');
+        if (error.code === 'auth/user-not-found') {
+            throw new Error('No account found with this email. Please sign up first.');
+        } else if (error.code === 'auth/wrong-password') {
+            throw new Error('Incorrect password. Please try again.');
+        } else if (error.code === 'auth/invalid-credential' || error.code === 'auth/invalid-login-credentials') {
+            throw new Error('Invalid email or password. Please check your credentials.');
         } else if (error.code === 'auth/too-many-requests') {
-            throw new Error('Too many failed attempts. Please try again later.');
-        } else if (error.code === 'auth/invalid-credential') {
-            throw new Error('Invalid email or password.');
+            throw new Error('Too many failed login attempts. Please try again later.');
+        } else if (error.code === 'auth/invalid-email') {
+            throw new Error('Please enter a valid email address.');
+        } else if (error.code === 'auth/user-disabled') {
+            throw new Error('This account has been disabled. Please contact support.');
+        } else if (error.code === 'auth/network-request-failed') {
+            throw new Error('Network error. Please check your internet connection.');
         }
 
         throw error;
@@ -193,15 +207,15 @@ export const logoutUser = async (): Promise<void> => {
 // ============================================================================
 
 /**
- * Get user profile from Firestore
+ * Get user profile from Realtime Database
  */
 export const getUserProfile = async (uid: string): Promise<User | null> => {
     try {
-        const docRef = doc(db, 'profiles', uid);
-        const docSnap = await getDoc(docRef);
+        const profileRef = dbRef(rtdb, `profiles/${uid}`);
+        const snapshot = await get(profileRef);
 
-        if (docSnap.exists()) {
-            return mapDocToUser(docSnap.data(), uid);
+        if (snapshot.exists()) {
+            return mapDataToUser(snapshot.val(), uid);
         } else {
             console.warn("User profile missing for ID:", uid);
             return null;
@@ -250,7 +264,7 @@ export const getCurrentUser = async (forceRefresh = false): Promise<User | null>
         return null;
     }
 
-    // 4. Fetch fresh profile from Firestore
+    // 4. Fetch fresh profile from Realtime Database
     const profile = await getUserProfile(fbUser.uid);
 
     if (profile) {
@@ -261,7 +275,7 @@ export const getCurrentUser = async (forceRefresh = false): Promise<User | null>
         return profile;
     }
 
-    // Return cached user if Firestore fetch failed
+    // Return cached user if database fetch failed
     if (currentUserCache) {
         return currentUserCache;
     }
@@ -299,16 +313,16 @@ const verifySessionInBackground = async (cachedUser: User) => {
  */
 export const saveUser = async (user: User): Promise<void> => {
     try {
-        const docRef = doc(db, 'profiles', user.userId);
+        const profileRef = dbRef(rtdb, `profiles/${user.userId}`);
 
-        await updateDoc(docRef, {
+        await update(profileRef, {
             display_name: user.displayName,
             department: user.department,
             college: user.college?.trim(),
             avatar_color: user.avatarColor,
             avatar_url: user.avatarUrl || null,
             has_onboarded: user.hasOnboarded,
-            updated_at: serverTimestamp(),
+            updated_at: Date.now(),
         });
 
         // Update caches
@@ -411,8 +425,8 @@ const uploadImage = async (file: File, folder: string): Promise<string | null> =
         const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
         const filePath = `${folder}/${userId}/${fileName}`;
 
-        const storageRef = ref(storage, filePath);
-        const snapshot = await uploadBytes(storageRef, compressedFile);
+        const fileRef = storageRef(storage, filePath);
+        const snapshot = await uploadBytes(fileRef, compressedFile);
         const downloadUrl = await getDownloadURL(snapshot.ref);
 
         console.log('✅ Image uploaded:', downloadUrl);
@@ -514,7 +528,24 @@ export const onAuthStateChange = (callback: (event: string, session: any) => voi
 /**
  * Get existing colleges for autocomplete
  */
-export { getExistingColleges } from './firestoreService';
+export const getExistingColleges = async (): Promise<string[]> => {
+    try {
+        const collegesRef = dbRef(rtdb, 'colleges');
+        const snapshot = await get(collegesRef);
+
+        if (!snapshot.exists()) return [];
+
+        const colleges: string[] = [];
+        snapshot.forEach((child) => {
+            colleges.push(child.key!.replace(/_/g, ' ').toUpperCase());
+        });
+
+        return colleges;
+    } catch (error) {
+        console.error('getExistingColleges error:', error);
+        return [];
+    }
+};
 
 /**
  * Get current user from memory cache (sync)

@@ -27,11 +27,10 @@
 
 import { PushNotifications, Token, PushNotificationSchema, ActionPerformed } from '@capacitor/push-notifications';
 import { Capacitor } from '@capacitor/core';
-import { supabase } from './supabaseClient';
 import { getCurrentUser } from './userService';
 import { messaging, db } from './firebase';
 import { getToken } from 'firebase/messaging';
-import { doc, setDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp, deleteDoc, updateDoc } from 'firebase/firestore';
 
 // ============================================================================
 // TYPES
@@ -236,14 +235,20 @@ export function handleNotificationNavigation(data: NotificationData): void {
  */
 async function markNotificationAsRead(notificationId: string): Promise<void> {
     try {
-        const { error } = await supabase
-            .from('notifications')
-            .update({ is_read: true })
-            .eq('id', notificationId);
-
-        if (error) {
-            log.error('Failed to mark notification as read:', error);
+        const user = await getCurrentUser();
+        if (!user) {
+            log.warning('Cannot mark notification as read: User not logged in');
+            return;
         }
+
+        // Update notification in Firestore
+        const notificationRef = doc(db, 'users', user.userId, 'notifications', notificationId);
+        await updateDoc(notificationRef, {
+            isRead: true,
+            readAt: serverTimestamp(),
+        });
+
+        log.debug('Notification marked as read:', notificationId);
     } catch (error) {
         log.error('Exception marking notification as read:', error);
     }

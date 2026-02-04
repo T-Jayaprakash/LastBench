@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.jayple.app',
+  appId: 'com.lastbench.app',
   appName: 'Genfess',
   webDir: 'dist',
   plugins: {

@@ -1,0 +1,97 @@
+{
+    "rules": {
+        // ========================================================================
+        // PROFILES - User profiles
+        // ========================================================================
+        "profiles": {
+            "$userId": {
+                // Read: Users can read any profile
+                ".read": "auth != null",
+                // Write: Users can only write their own profile
+                ".write": "auth != null && auth.uid == $userId"
+            }
+        },
+        // ========================================================================
+        // POSTS - College confessions
+        // ========================================================================
+        "posts": {
+            // Read: Any authenticated user can read posts
+            ".read": "auth != null",
+            "$postId": {
+                // Write: Authenticated users can create posts
+                // Delete/Update: Only author can modify
+                ".write": "auth != null && (!data.exists() || data.child('author_id').val() == auth.uid)"
+            }
+        },
+        // ========================================================================
+        // COLLEGES - Index for college-based queries  
+        // ========================================================================
+        "colleges": {
+            // Read: Any authenticated user can read
+            ".read": "auth != null",
+            "$college": {
+                "$postId": {
+                    // Write: Authenticated users can add/remove posts
+                    ".write": "auth != null"
+                }
+            }
+        },
+        // ========================================================================
+        // COMMENTS - Post comments
+        // ========================================================================
+        "comments": {
+            // Read: Any authenticated user can read comments
+            ".read": "auth != null",
+            "$commentId": {
+                // Create: Any authenticated user
+                // Update/Delete: Only author
+                ".write": "auth != null && (!data.exists() || data.child('author_id').val() == auth.uid)"
+            }
+        },
+        // ========================================================================
+        // INTERACTIONS - Likes and other interactions
+        // ========================================================================
+        "interactions": {
+            // Read: Any authenticated user
+            ".read": "auth != null",
+            "$interactionId": {
+                // Write: Users can create/delete their own interactions
+                ".write": "auth != null && (!data.exists() || data.child('user_id').val() == auth.uid)"
+            }
+        },
+        // ========================================================================
+        // NOTIFICATIONS - Per-user notifications
+        // ========================================================================
+        "notifications": {
+            "$userId": {
+                // Read: Only the owner can read their notifications
+                ".read": "auth != null && auth.uid == $userId",
+                "$notificationId": {
+                    // Write: System can write, user can mark as read
+                    ".write": "auth != null"
+                }
+            }
+        },
+        // ========================================================================
+        // FCM TOKENS - Push notification tokens
+        // ========================================================================
+        "fcmTokens": {
+            "$userId": {
+                // Read/Write: Only the owner
+                ".read": "auth != null && auth.uid == $userId",
+                ".write": "auth != null && auth.uid == $userId"
+            }
+        },
+        // ========================================================================
+        // REPORTS - Content reports (write-only for users)
+        // ========================================================================
+        "reports": {
+            // Users cannot read reports
+            ".read": false,
+            "$reportId": {
+                // Any authenticated user can create a report
+                ".write": "auth != null && !data.exists()"
+            }
+        }
+    }
+}

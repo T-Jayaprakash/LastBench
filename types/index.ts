@@ -1,7 +1,7 @@
 
 export type PostTag = 'Confess' | 'Roast' | 'Meme' | 'Love' | 'Dept' | 'Other';
 
-export type View = 'home' | 'create' | 'profile' | 'notifications';
+export type View = 'home' | 'create' | 'profile' | 'notifications' | 'saved';
 
 export type Theme = 'light' | 'dark';
 
@@ -20,9 +20,11 @@ export interface Post {
     tags: PostTag[];
     likesCount: number;
     commentsCount: number;
+    sharesCount?: number; // Number of times this post was shared
     createdAt: Date;
     trendingScore: number;
     isLiked?: boolean; // Whether the current user has liked this post
+    isBookmarked?: boolean; // Whether the current user has saved this post
 }
 
 export interface User {
@@ -46,6 +48,14 @@ export interface Comment {
     authorAvatarUrl?: string;
     text: string;
     likesCount: number;
+    repliesCount?: number; // Number of replies to this comment
     isLiked?: boolean;
+    createdAt: Date;
+}
+
+export interface Bookmark {
+    id: string;
+    userId: string;
+    postId: string;
     createdAt: Date;
 }

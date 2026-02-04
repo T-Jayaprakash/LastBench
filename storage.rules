@@ -1,0 +1,123 @@
+rules_version = '2';
+
+/**
+ * ============================================================================
+ * GENFESS - PRODUCTION STORAGE SECURITY RULES
+ * ============================================================================
+ * 
+ * Copy these rules to Firebase Console > Storage > Rules
+ * 
+ * Storage Structure:
+ * - /avatars/{userId}/{filename} - User profile pictures
+ * - /posts/{postId}/{filename} - Post images
+ * - /thumbnails/{postId}/{filename} - Auto-generated thumbnails
+ * 
+ * ============================================================================
+ */
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // ========================================================================
+    // HELPER FUNCTIONS
+    // ========================================================================
+    
+    // Check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Check if the file is an image
+    function isImage() {
+      return request.resource.contentType.matches('image/.*');
+    }
+    
+    // Check file size (max 10MB for images)
+    function isValidImageSize() {
+      return request.resource.size < 10 * 1024 * 1024;
+    }
+    
+    // Check file size (max 5MB for avatars)
+    function isValidAvatarSize() {
+      return request.resource.size < 5 * 1024 * 1024;
+    }
+    
+    // ========================================================================
+    // AVATARS - User Profile Pictures
+    // ========================================================================
+    
+    match /avatars/{userId}/{allPaths=**} {
+      // Anyone can view avatars
+      allow read: if true;
+      
+      // Only the owner can upload their avatar
+      allow create: if isAuthenticated() 
+        && request.auth.uid == userId
+        && isImage()
+        && isValidAvatarSize();
+      
+      // Only the owner can update their avatar
+      allow update: if isAuthenticated() 
+        && request.auth.uid == userId
+        && isImage()
+        && isValidAvatarSize();
+      
+      // Only the owner can delete their avatar
+      allow delete: if isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // ========================================================================
+    // POST IMAGES
+    // ========================================================================
+    
+    match /posts/{postId}/{allPaths=**} {
+      // Anyone authenticated can view post images
+      allow read: if isAuthenticated();
+      
+      // Authenticated users can upload post images
+      allow create: if isAuthenticated()
+        && isImage()
+        && isValidImageSize();
+      
+      // Post images cannot be updated (delete and re-upload instead)
+      allow update: if false;
+      
+      // Only the post author can delete (checked at app level)
+      // For simplicity, allowing authenticated users to delete their uploads
+      allow delete: if isAuthenticated();
+    }
+    
+    // ========================================================================
+    // THUMBNAILS - Auto-generated
+    // ========================================================================
+    
+    match /thumbnails/{postId}/{allPaths=**} {
+      // Anyone authenticated can view thumbnails
+      allow read: if isAuthenticated();
+      
+      // Thumbnails are created by Cloud Functions (no client writes)
+      // For development, allowing authenticated writes:
+      allow create: if isAuthenticated() && isImage();
+      
+      // No updates or deletes from clients
+      allow update, delete: if false;
+    }
+    
+    // ========================================================================
+    // TEMP UPLOADS - For processing
+    // ========================================================================
+    
+    match /temp/{userId}/{allPaths=**} {
+      // Only the owner can access their temp files
+      allow read, write: if isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // ========================================================================
+    // DEFAULT - Deny all other access
+    // ========================================================================
+    
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

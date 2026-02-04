@@ -1,12 +1,14 @@
 
 
 export const COLLEGES: string[] = [
+    'KRCE',  // K. Ramakrishnan College of Engineering
     'Anna University',
     'IIT Madras',
     'SRM University',
     'VIT Vellore',
     'PSG College of Technology',
     'CEG, Guindy',
+    'NIT Trichy',
 ];
 
 

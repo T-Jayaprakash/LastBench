@@ -12,7 +12,7 @@ import * as userService from './services/userService';
 import LoginView from './views/LoginView';
 import OnboardingView from './views/OnboardingView';
 import SignUpView from './views/SignUpView';
-import { ToastProvider } from './components/Toast'; // Import Provider
+import { ToastProvider, useToast } from './components/Toast'; // Import Provider and hook
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { checkVersion, shouldCheckVersion, markVersionChecked, getCurrentVersion } from './services/versionService';
 
@@ -73,6 +73,14 @@ const AppContent: React.FC = () => {
     const [updatedPost, setUpdatedPost] = useState<Post | null>(null);
     const [showUpdateModal, setShowUpdateModal] = useState(false);
     const [updateInfo, setUpdateInfo] = useState<any>(null);
+
+
+    // Use Toast for share notifications
+    const { showToast } = useToast();
+
+    const handleShareSuccess = (message: string) => {
+        showToast(message, 'success');
+    };
 
     useEffect(() => {
         const savedTheme = localStorage.getItem('theme') as Theme | null;
@@ -404,6 +412,7 @@ const AppContent: React.FC = () => {
                         deletedPostId={deletedPostId}
                         updatedPost={updatedPost}
                         onNotificationClick={() => navigateTo('notifications')}
+                        onShareSuccess={handleShareSuccess}
                     />
                 </div>
 

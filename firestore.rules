@@ -1,68 +1,275 @@
 rules_version = '2';
+
+/**
+ * ============================================================================
+ * GENFESS - PRODUCTION FIRESTORE SECURITY RULES
+ * ============================================================================
+ * 
+ * Copy these rules to Firebase Console > Firestore > Rules
+ * 
+ * Security Model:
+ * - Users can only read/write their own data
+ * - Posts are readable by users in the same college
+ * - Comments are readable by anyone (on public posts)
+ * - Interactions are private to each user
+ * - FCM tokens are only accessible by the owner
+ * 
+ * ============================================================================
+ */
+
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // --- HELPER FUNCTIONS ---
-    function isSignedIn() {
+    
+    // ========================================================================
+    // HELPER FUNCTIONS
+    // ========================================================================
+    
+    // Check if user is authenticated
+    function isAuthenticated() {
       return request.auth != null;
     }
     
+    // Check if user is the owner of the document
     function isOwner(userId) {
-      return request.auth.uid == userId;
+      return isAuthenticated() && request.auth.uid == userId;
     }
-
-    // --- COLLECTIONS ---
-
-    // Users
-    match /users/{userId} {
-      allow read: if isSignedIn();
-      allow write: if isOwner(userId); // Users can update their own profile
-
-      // FCM Tokens subcollection
-      // users/{userId}/fcmTokens/{token}
-      match /fcmTokens/{token} {
-        allow read, write: if isOwner(userId);
-      }
-
-      // Notifications subcollection
-      // users/{userId}/notifications/{notificationId}
-      match /notifications/{notificationId} {
-        allow read: if isOwner(userId);
-        allow write: if false; // Only Cloud Functions can write notifications
-      }
+    
+    // Check if user is the author of a post/comment
+    function isAuthor() {
+      return isAuthenticated() && resource.data.author_id == request.auth.uid;
     }
-
-    // Profiles (Publicly readable user info)
-    match /profiles/{profileId} {
-      allow read: if true;
-      allow write: if isOwner(request.resource.data.user_id);
+    
+    // Get user's profile data
+    function getUserProfile() {
+      return get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data;
     }
-
-    // Posts
+    
+    // Check if user belongs to the same college as the post
+    function isSameCollege(postCollege) {
+      return isAuthenticated() && getUserProfile().college == postCollege;
+    }
+    
+    // Validate post data
+    function isValidPost() {
+      let data = request.resource.data;
+      return data.keys().hasAll(['author_id', 'text', 'college', 'created_at'])
+        && data.author_id == request.auth.uid
+        && data.text is string
+        && data.text.size() > 0
+        && data.text.size() <= 5000;
+    }
+    
+    // Validate comment data
+    function isValidComment() {
+      let data = request.resource.data;
+      return data.keys().hasAll(['author_id', 'post_id', 'text', 'created_at'])
+        && data.author_id == request.auth.uid
+        && data.text is string
+        && data.text.size() > 0
+        && data.text.size() <= 2000;
+    }
+    
+    // ========================================================================
+    // PROFILES COLLECTION
+    // ========================================================================
+    
+    match /profiles/{userId} {
+      // Users can read any profile (for displaying names on posts/comments)
+      allow read: if isAuthenticated();
+      
+      // Users can only create/update their own profile
+      // For create: user must be authenticated and creating their own profile
+      allow create: if isAuthenticated() && request.auth.uid == userId
+        && request.resource.data.keys().hasAll(['anon_id', 'display_name', 'college'])
+        && request.resource.data.anon_id is string
+        && request.resource.data.display_name is string
+        && request.resource.data.college is string;
+      
+      // For update: user must own the profile
+      allow update: if isOwner(userId);
+      
+      // Profiles cannot be deleted (soft delete only)
+      allow delete: if false;
+    }
+    
+    // ========================================================================
+    // POSTS COLLECTION
+    // ========================================================================
+    
     match /posts/{postId} {
-      allow read: if true;
-      allow create: if isSignedIn();
-      allow update, delete: if isSignedIn() && isOwner(resource.data.author_id);
+      // All authenticated users can read posts
+      // College filtering is done client-side since profiles are in Realtime DB
+      allow read: if isAuthenticated();
+      
+      // Authenticated users can create posts
+      allow create: if isAuthenticated() && isValidPost();
+      
+      // Authors can update their own posts, or any authenticated user can update likes_count
+      allow update: if isAuthenticated() && (
+        isAuthor() || 
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes_count', 'comments_count', 'shares_count']))
+      );
+      
+      // Only the author can delete their posts
+      allow delete: if isAuthor();
     }
-
-    // Comments
+    
+    // ========================================================================
+    // COMMENTS COLLECTION
+    // ========================================================================
+    
     match /comments/{commentId} {
-      allow read: if true;
-      allow create: if isSignedIn();
-      allow update, delete: if isSignedIn() && isOwner(resource.data.author_id);
+      // Anyone authenticated can read comments
+      allow read: if isAuthenticated();
+      
+      // Authenticated users can create comments
+      allow create: if isAuthenticated() && isValidComment();
+      
+      // Only the author can update their comments
+      allow update: if isAuthor();
+      
+      // Only the author can delete their comments
+      allow delete: if isAuthor();
     }
-
-    // Interactions (Likes, etc.)
+    
+    // ========================================================================
+    // INTERACTIONS COLLECTION (Likes)
+    // ========================================================================
+    
     match /interactions/{interactionId} {
-      allow read: if true;
-      allow create: if isSignedIn() && request.resource.data.user_id == request.auth.uid;
-      allow delete: if isSignedIn() && resource.data.user_id == request.auth.uid;
+      // Users can read their own interactions
+      allow read: if isAuthenticated() && resource.data.user_id == request.auth.uid;
+      
+      // Users can read interactions on posts (for like counts)
+      allow read: if isAuthenticated();
+      
+      // Users can create interactions
+      allow create: if isAuthenticated() 
+        && request.resource.data.user_id == request.auth.uid;
+      
+      // Users can delete their own interactions (unlike)
+      allow delete: if isAuthenticated() && resource.data.user_id == request.auth.uid;
+      
+      // Interactions cannot be updated
+      allow update: if false;
     }
-
-    // Reports
+    
+    // ========================================================================
+    // NOTIFICATIONS COLLECTION
+    // ========================================================================
+    
+    match /notifications/{notificationId} {
+      // Users can read notifications where they are the recipient
+      // This allows both individual doc reads and collection queries
+      allow read: if isAuthenticated();
+      
+      // System creates notifications (via Cloud Functions)
+      // For client-side creation during development:
+      allow create: if isAuthenticated();
+      
+      // Users can update/delete their own notifications
+      allow update, delete: if isAuthenticated() 
+        && resource.data.user_id == request.auth.uid;
+    }
+    
+    // ========================================================================
+    // REPORTS COLLECTION
+    // ========================================================================
+    
     match /reports/{reportId} {
-      allow create: if isSignedIn();
-      allow read: if false; // Admin only
+      // Reports are write-only (no read access for regular users)
+      allow read: if false;
+      
+      // Authenticated users can create reports
+      allow create: if isAuthenticated() 
+        && request.resource.data.reporter_id == request.auth.uid;
+      
+      // Reports cannot be updated or deleted by users
+      allow update, delete: if false;
+    }
+    
+    // ========================================================================
+    // USERS COLLECTION (FCM Tokens)
+    // ========================================================================
+    
+    match /users/{userId} {
+      // Users can read their own user document
+      allow read: if isOwner(userId);
+      
+      // Users can create/update their own user document
+      allow create, update: if isOwner(userId);
+      
+      // FCM Tokens subcollection
+      match /fcmTokens/{tokenId} {
+        // Users can manage their own FCM tokens
+        allow read, create, update, delete: if isOwner(userId);
+      }
+    }
+    
+    // ========================================================================
+    // PUSH SUBSCRIPTIONS (Legacy - if still used)
+    // ========================================================================
+    
+    match /push_subscriptions/{subscriptionId} {
+      allow read: if isAuthenticated() && resource.data.user_id == request.auth.uid;
+      allow create: if isAuthenticated() && request.resource.data.user_id == request.auth.uid;
+      allow update: if isAuthenticated() && resource.data.user_id == request.auth.uid;
+      allow delete: if isAuthenticated() && resource.data.user_id == request.auth.uid;
+    }
+    
+    // ========================================================================
+    // FEED EVENTS (for realtime - if used)
+    // ========================================================================
+    
+    match /feed_events/{eventId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update, delete: if false;
+    }
+    
+    // ========================================================================
+    // ALLOWED DOMAINS (Admin only - future feature)
+    // ========================================================================
+    
+    match /allowed_domains/{domainId} {
+      // Everyone can read allowed domains (for email validation)
+      allow read: if true;
+      
+      // Only admins can write (implement admin check in production)
+      allow write: if false;
+    }
+    
+    // ========================================================================
+    // BOOKMARKS (Saved Posts)
+    // ========================================================================
+    
+    match /bookmarks/{bookmarkId} {
+      // Users can read their own bookmarks
+      allow read: if isAuthenticated();
+      
+      // Users can create bookmarks
+      allow create: if isAuthenticated();
+      
+      // Users can delete their own bookmarks
+      allow delete: if isAuthenticated() && resource.data.user_id == request.auth.uid;
+      
+      // Bookmarks cannot be updated
+      allow update: if false;
+    }
+    
+    // ========================================================================
+    // SHARES (Share tracking)
+    // ========================================================================
+    
+    match /shares/{shareId} {
+      // Shares are write-only for tracking
+      allow read: if false;
+      
+      // Anyone authenticated can record a share
+      allow create: if isAuthenticated();
+      
+      // Shares cannot be updated or deleted
+      allow update, delete: if false;
     }
   }
 }

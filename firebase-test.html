@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GenFess - Firebase Connection Test</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        .test-section {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-left: 4px solid #667eea;
+        }
+        .test-section h2 {
+            font-size: 18px;
+            color: #333;
+            margin-bottom: 15px;
+        }
+        .status {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin: 10px 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px;
+        }
+        .status.pending {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeeba;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .icon { font-size: 18px; }
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        button:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .result {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 10px;
+            border: 1px solid #e0e0e0;
+            font-size: 13px;
+            font-family: monospace;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .summary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-top: 30px;
+        }
+        .summary h3 {
+            margin-bottom: 15px;
+        }
+        .summary-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+        }
+        .summary-item:last-child {
+            border-bottom: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔥 GenFess Firebase Test</h1>
+        <p class="subtitle">Testing Firebase connection, authentication, database, and storage</p>
+
+        <!-- Test 1: Firebase Connection -->
+        <div class="test-section">
+            <h2>1. Firebase SDK Connection</h2>
+            <div id="connection-status" class="status pending">
+                <span class="icon">⏳</span>
+                <span>Checking connection...</span>
+            </div>
+        </div>
+
+        <!-- Test 2: Anonymous Authentication -->
+        <div class="test-section">
+            <h2>2. Anonymous Authentication</h2>
+            <button id="auth-btn" onclick="testAuth()">Test Login</button>
+            <div id="auth-status" class="status pending" style="margin-top: 15px;">
+                <span class="icon">⏳</span>
+                <span>Waiting for test...</span>
+            </div>
+            <div id="auth-result" class="result" style="display: none;"></div>
+        </div>
+
+        <!-- Test 3: Create Post -->
+        <div class="test-section">
+            <h2>3. Create Post (Firestore Write)</h2>
+            <button id="post-btn" onclick="testCreatePost()" disabled>Create Test Post</button>
+            <div id="post-status" class="status pending" style="margin-top: 15px;">
+                <span class="icon">⏳</span>
+                <span>Login required first</span>
+            </div>
+            <div id="post-result" class="result" style="display: none;"></div>
+        </div>
+
+        <!-- Test 4: Read Posts -->
+        <div class="test-section">
+            <h2>4. Read Posts (Firestore Read)</h2>
+            <button id="read-btn" onclick="testReadPosts()">Read Posts</button>
+            <div id="read-status" class="status pending" style="margin-top: 15px;">
+                <span class="icon">⏳</span>
+                <span>Waiting for test...</span>
+            </div>
+            <div id="read-result" class="result" style="display: none;"></div>
+        </div>
+
+        <!-- Test 5: Image Upload -->
+        <div class="test-section">
+            <h2>5. Image Upload (Cloud Storage)</h2>
+            <input type="file" id="file-input" accept="image/*" style="margin-bottom: 10px;">
+            <button id="upload-btn" onclick="testImageUpload()" disabled>Upload Test Image</button>
+            <div id="upload-status" class="status pending" style="margin-top: 15px;">
+                <span class="icon">⏳</span>
+                <span>Login required first</span>
+            </div>
+            <div id="upload-result" class="result" style="display: none;"></div>
+        </div>
+
+        <!-- Summary -->
+        <div class="summary">
+            <h3>📊 Test Summary</h3>
+            <div class="summary-item">
+                <span>Firebase Project:</span>
+                <span id="project-id">-</span>
+            </div>
+            <div class="summary-item">
+                <span>Connection:</span>
+                <span id="conn-summary">⏳ Testing...</span>
+            </div>
+            <div class="summary-item">
+                <span>Authentication:</span>
+                <span id="auth-summary">⏳ Pending</span>
+            </div>
+            <div class="summary-item">
+                <span>Database (Firestore):</span>
+                <span id="db-summary">⏳ Pending</span>
+            </div>
+            <div class="summary-item">
+                <span>Storage:</span>
+                <span id="storage-summary">⏳ Pending</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
+        import { getAuth, signInAnonymously } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
+        import { getFirestore, collection, addDoc, getDocs, query, orderBy, limit, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+        import { getStorage, ref, uploadBytes, getDownloadURL } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js';
+
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyAFmoY4HpFzJHzmxloSQmkH2H2d9zWkkD0",
+            authDomain: "genfess-ac0e8.firebaseapp.com",
+            projectId: "genfess-ac0e8",
+            storageBucket: "genfess-ac0e8.firebasestorage.app",
+            messagingSenderId: "731705712640",
+            appId: "1:731705712640:web:18156bdd611204191bb8e5"
+        };
+
+        // Initialize Firebase
+        let app, auth, db, storage, currentUser;
+
+        try {
+            app = initializeApp(firebaseConfig);
+            auth = getAuth(app);
+            db = getFirestore(app);
+            storage = getStorage(app);
+
+            document.getElementById('project-id').textContent = firebaseConfig.projectId;
+            setStatus('connection-status', 'success', '✅ Firebase SDK initialized successfully');
+            setStatus('conn-summary', 'success', '✅ Connected');
+        } catch (error) {
+            setStatus('connection-status', 'error', '❌ Failed: ' + error.message);
+            setStatus('conn-summary', 'error', '❌ Failed');
+        }
+
+        // Make functions global
+        window.testAuth = testAuth;
+        window.testCreatePost = testCreatePost;
+        window.testReadPosts = testReadPosts;
+        window.testImageUpload = testImageUpload;
+        window.auth = auth;
+        window.db = db;
+        window.storage = storage;
+
+        // Test Authentication
+        async function testAuth() {
+            const btn = document.getElementById('auth-btn');
+            btn.disabled = true;
+            btn.textContent = 'Testing...';
+            setStatus('auth-status', 'pending', '⏳ Attempting anonymous login...');
+
+            try {
+                const result = await signInAnonymously(auth);
+                currentUser = result.user;
+                window.currentUser = currentUser;
+
+                const resultData = {
+                    uid: currentUser.uid,
+                    isAnonymous: currentUser.isAnonymous,
+                    createdAt: currentUser.metadata.creationTime
+                };
+
+                setStatus('auth-status', 'success', '✅ Login successful!');
+                setStatus('auth-summary', 'success', '✅ Working');
+                document.getElementById('auth-result').style.display = 'block';
+                document.getElementById('auth-result').textContent = JSON.stringify(resultData, null, 2);
+                
+                // Enable other tests
+                document.getElementById('post-btn').disabled = false;
+                document.getElementById('upload-btn').disabled = false;
+                setStatus('post-status', 'pending', '⏳ Click button to test');
+                setStatus('upload-status', 'pending', '⏳ Select file and click button');
+
+            } catch (error) {
+                setStatus('auth-status', 'error', '❌ Failed: ' + error.message);
+                setStatus('auth-summary', 'error', '❌ Failed');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Test Login';
+            }
+        }
+
+        // Test Create Post
+        async function testCreatePost() {
+            const btn = document.getElementById('post-btn');
+            btn.disabled = true;
+            btn.textContent = 'Creating...';
+            setStatus('post-status', 'pending', '⏳ Creating test post...');
+
+            try {
+                const postData = {
+                    text: '🧪 This is a test post from Firebase connection test',
+                    author_id: currentUser.uid,
+                    likes_count: 0,
+                    comments_count: 0,
+                    created_at: serverTimestamp(),
+                    college: 'test-college'
+                };
+
+                const docRef = await addDoc(collection(db, 'posts'), postData);
+
+                setStatus('post-status', 'success', '✅ Post created successfully!');
+                setStatus('db-summary', 'success', '✅ Working');
+                document.getElementById('post-result').style.display = 'block';
+                document.getElementById('post-result').textContent = JSON.stringify({
+                    postId: docRef.id,
+                    ...postData,
+                    created_at: 'serverTimestamp()'
+                }, null, 2);
+
+            } catch (error) {
+                setStatus('post-status', 'error', '❌ Failed: ' + error.message);
+                setStatus('db-summary', 'error', '❌ Failed');
+                document.getElementById('post-result').style.display = 'block';
+                document.getElementById('post-result').textContent = 'Error: ' + error.message;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Create Test Post';
+            }
+        }
+
+        // Test Read Posts
+        async function testReadPosts() {
+            const btn = document.getElementById('read-btn');
+            btn.disabled = true;
+            btn.textContent = 'Reading...';
+            setStatus('read-status', 'pending', '⏳ Querying posts...');
+
+            try {
+                const q = query(collection(db, 'posts'), orderBy('created_at', 'desc'), limit(5));
+                const querySnapshot = await getDocs(q);
+
+                const posts = [];
+                querySnapshot.forEach((doc) => {
+                    posts.push({
+                        id: doc.id,
+                        ...doc.data()
+                    });
+                });
+
+                setStatus('read-status', 'success', `✅ Retrieved ${posts.length} posts`);
+                if (!window.writeTestDone) {
+                    setStatus('db-summary', 'success', '✅ Working');
+                }
+                document.getElementById('read-result').style.display = 'block';
+                document.getElementById('read-result').textContent = JSON.stringify(posts, null, 2);
+
+            } catch (error) {
+                setStatus('read-status', 'error', '❌ Failed: ' + error.message);
+                document.getElementById('read-result').style.display = 'block';
+                document.getElementById('read-result').textContent = 'Error: ' + error.message;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Read Posts';
+            }
+        }
+
+        // Test Image Upload
+        async function testImageUpload() {
+            const btn = document.getElementById('upload-btn');
+            const fileInput = document.getElementById('file-input');
+            const file = fileInput.files[0];
+
+            if (!file) {
+                alert('Please select an image first');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = 'Uploading...';
+            setStatus('upload-status', 'pending', '⏳ Uploading to Cloud Storage...');
+
+            try {
+                const storageRef = ref(storage, `test-uploads/${currentUser.uid}/${Date.now()}_${file.name}`);
+                const snapshot = await uploadBytes(storageRef, file);
+                const downloadURL = await getDownloadURL(snapshot.ref);
+
+                setStatus('upload-status', 'success', '✅ Upload successful!');
+                setStatus('storage-summary', 'success', '✅ Working');
+                document.getElementById('upload-result').style.display = 'block';
+                document.getElementById('upload-result').innerHTML = `
+                    <strong>File uploaded:</strong><br>
+                    Path: ${snapshot.ref.fullPath}<br>
+                    Size: ${(snapshot.metadata.size / 1024).toFixed(2)} KB<br>
+                    URL: <a href="${downloadURL}" target="_blank">View Image</a><br>
+                    <img src="${downloadURL}" style="max-width: 100%; margin-top: 10px; border-radius: 8px;">
+                `;
+
+            } catch (error) {
+                setStatus('upload-status', 'error', '❌ Failed: ' + error.message);
+                setStatus('storage-summary', 'error', '❌ Failed');
+                document.getElementById('upload-result').style.display = 'block';
+                document.getElementById('upload-result').textContent = 'Error: ' + error.message;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Upload Test Image';
+            }
+        }
+
+        function setStatus(elementId, type, message) {
+            const element = document.getElementById(elementId);
+            element.className = `status ${type}`;
+            
+            let icon = '⏳';
+            if (type === 'success') icon = '✅';
+            if (type === 'error') icon = '❌';
+            
+            if (elementId.endsWith('-summary')) {
+                element.textContent = message;
+            } else {
+                element.innerHTML = `<span class="icon">${icon}</span><span>${message}</span>`;
+            }
+        }
+    </script>
+</body>
+</html>

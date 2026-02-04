@@ -55,6 +55,8 @@ const COLLECTIONS = {
     PROFILES: 'profiles',
     NOTIFICATIONS: 'notifications',
     REPORTS: 'reports',
+    BOOKMARKS: 'bookmarks',
+    SHARES: 'shares',
 } as const;
 
 const PAGE_SIZE = 20;
@@ -951,3 +953,233 @@ export const getExistingColleges = async (): Promise<string[]> => {
 
 // Re-export for backward compatibility
 export { mapDocToPost as mapDbPostToPost };
+
+// ============================================================================
+// BOOKMARKS (Saved Posts)
+// ============================================================================
+
+/**
+ * Toggle bookmark on a post (save/unsave)
+ */
+export const toggleBookmark = async (postId: string): Promise<boolean> => {
+    const user = await getCurrentUser();
+    if (!user) throw new Error('Not authenticated');
+
+    const bookmarkId = `${user.anonId}_${postId}`;
+    const bookmarkRef = doc(db, COLLECTIONS.BOOKMARKS, bookmarkId);
+
+    try {
+        const bookmarkDoc = await getDoc(bookmarkRef);
+
+        if (bookmarkDoc.exists()) {
+            // Remove bookmark
+            await deleteDoc(bookmarkRef);
+            return false; // Not bookmarked
+        } else {
+            // Add bookmark
+            await addDoc(collection(db, COLLECTIONS.BOOKMARKS), {
+                user_id: user!.anonId,
+                post_id: postId,
+                created_at: serverTimestamp(),
+            });
+            return true; // Bookmarked
+        }
+    } catch (error) {
+        console.error('toggleBookmark error:', error);
+        throw error;
+    }
+};
+
+/**
+ * Get user's bookmarked post IDs
+ */
+export const getUserBookmarkedPostIds = async (userId: string, postIds: string[]): Promise<Set<string>> => {
+    if (!postIds.length) return new Set();
+
+    try {
+        const bookmarkQuery = query(
+            collection(db, COLLECTIONS.BOOKMARKS),
+            where('user_id', '==', userId),
+            where('post_id', 'in', postIds.slice(0, 10)) // Firestore limit
+        );
+        const snapshot = await getDocs(bookmarkQuery);
+        return new Set(snapshot.docs.map(doc => doc.data().post_id));
+    } catch (error) {
+        console.error('getUserBookmarkedPostIds error:', error);
+        return new Set();
+    }
+};
+
+/**
+ * Get all bookmarked posts for a user
+ */
+export const getSavedPosts = async (userId: string): Promise<Post[]> => {
+    try {
+        // Get user's bookmarks
+        const bookmarkQuery = query(
+            collection(db, COLLECTIONS.BOOKMARKS),
+            where('user_id', '==', userId),
+            orderBy('created_at', 'desc')
+        );
+        const bookmarkSnapshot = await getDocs(bookmarkQuery);
+        const postIds = bookmarkSnapshot.docs.map(doc => doc.data().post_id);
+
+        if (!postIds.length) return [];
+
+        // Fetch posts (in batches due to Firestore 'in' limit of 10)
+        const posts: Post[] = [];
+        for (let i = 0; i < postIds.length; i += 10) {
+            const batch = postIds.slice(i, i + 10);
+            const postsQuery = query(
+                collection(db, COLLECTIONS.POSTS),
+                where('__name__', 'in', batch)
+            );
+            const postsSnapshot = await getDocs(postsQuery);
+            postsSnapshot.docs.forEach(doc => {
+                posts.push({ ...mapDocToPost(doc), isBookmarked: true });
+            });
+        }
+
+        return posts;
+    } catch (error) {
+        console.error('getSavedPosts error:', error);
+        return [];
+    }
+};
+
+// ============================================================================
+// SHARES
+// ============================================================================
+
+/**
+ * Record a post share and increment share count
+ */
+export const recordShare = async (postId: string, shareMethod: 'copy' | 'native' | 'whatsapp' | 'other'): Promise<void> => {
+    const user = await getCurrentUser();
+
+    try {
+        const batch = writeBatch(db);
+
+        // Record the share
+        const shareRef = doc(collection(db, COLLECTIONS.SHARES));
+        batch.set(shareRef, {
+            post_id: postId,
+            user_id: user?.anonId || 'anonymous',
+            share_method: shareMethod,
+            created_at: serverTimestamp(),
+        });
+
+        // Increment share count on post
+        const postRef = doc(db, COLLECTIONS.POSTS, postId);
+        batch.update(postRef, {
+            shares_count: increment(1),
+        });
+
+        await batch.commit();
+    } catch (error) {
+        console.error('recordShare error:', error);
+        // Don't throw - sharing should still work even if tracking fails
+    }
+};
+
+/**
+ * Share a post using native share or clipboard fallback
+ */
+export const sharePost = async (post: Post): Promise<'shared' | 'copied' | 'failed'> => {
+    const shareText = `"${post.text.slice(0, 200)}${post.text.length > 200 ? '...' : ''}" - Posted anonymously on Genfess`;
+    const shareUrl = `https://genfess.app/post/${post.id}`; // Placeholder URL
+
+    try {
+        // Try native sharing first
+        if (navigator.share) {
+            await navigator.share({
+                title: 'Genfess Post',
+                text: shareText,
+                url: shareUrl,
+            });
+            await recordShare(post.id, 'native');
+            return 'shared';
+        }
+
+        // Fallback to clipboard
+        await navigator.clipboard.writeText(`${shareText}\n\n${shareUrl}`);
+        await recordShare(post.id, 'copy');
+        return 'copied';
+    } catch (error) {
+        // User cancelled or error
+        if ((error as Error).name === 'AbortError') {
+            return 'failed'; // User cancelled
+        }
+
+        // Try clipboard as last resort
+        try {
+            await navigator.clipboard.writeText(`${shareText}\n\n${shareUrl}`);
+            await recordShare(post.id, 'copy');
+            return 'copied';
+        } catch {
+            console.error('Share failed:', error);
+            return 'failed';
+        }
+    }
+};
+
+// ============================================================================
+// REPLY COUNTS
+// ============================================================================
+
+/**
+ * Get reply count for a comment
+ */
+export const getCommentRepliesCount = async (commentId: string): Promise<number> => {
+    try {
+        const repliesQuery = query(
+            collection(db, COLLECTIONS.COMMENTS),
+            where('parent_id', '==', commentId)
+        );
+        const snapshot = await getDocs(repliesQuery);
+        return snapshot.size;
+    } catch (error) {
+        console.error('getCommentRepliesCount error:', error);
+        return 0;
+    }
+};
+
+/**
+ * Subscribe to comment count changes on a post (real-time)
+ */
+export const subscribeToCommentCount = (
+    postId: string,
+    callback: (count: number) => void
+): (() => void) => {
+    const commentsQuery = query(
+        collection(db, COLLECTIONS.COMMENTS),
+        where('post_id', '==', postId)
+    );
+
+    return onSnapshot(commentsQuery, (snapshot) => {
+        callback(snapshot.size);
+    }, (error) => {
+        console.error('subscribeToCommentCount error:', error);
+    });
+};
+
+/**
+ * Subscribe to all comment replies in real-time
+ */
+export const subscribeToCommentReplies = (
+    postId: string,
+    callback: (replies: Comment[]) => void
+): (() => void) => {
+    const repliesQuery = query(
+        collection(db, COLLECTIONS.COMMENTS),
+        where('post_id', '==', postId),
+        orderBy('created_at', 'asc')
+    );
+
+    return onSnapshot(repliesQuery, (snapshot) => {
+        const replies = snapshot.docs.map(doc => mapDocToComment(doc));
+        callback(replies);
+    }, (error) => {
+        console.error('subscribeToCommentReplies error:', error);
+    });
+};
