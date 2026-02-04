@@ -4,8 +4,8 @@ import { Post, Comment } from '../types/index';
 import { t } from '../constants/locales';
 import * as api from '../services/api';
 import { XMarkIcon, HeartIcon } from '../components/Icons';
-import { useSupabaseRealtimeFiltered } from '../src/hooks/useSupabaseRealtime';
-import { mergeRealtimeInsert } from '../src/utils/realtimeUtils';
+import { useFirestoreCollection } from '../src/hooks/useFirebaseRealtime';
+import { where, orderBy } from 'firebase/firestore';
 
 interface CommentViewProps {
     post: Post;
@@ -153,43 +153,51 @@ const CommentView: React.FC<CommentViewProps> = ({ post, onBack }) => {
         fetchComments();
     }, [post.id]);
 
-    // Realtime subscription for new comments
-    useSupabaseRealtimeFiltered({
-        table: 'comments',
-        filter: `post_id=eq.${post.id}`,
-        callback: (payload) => {
-            if (payload.eventType === 'INSERT' && payload.new) {
-                const newCommentRaw = payload.new;
-                // Transform raw comment data to Comment type
-                const newCommentData: Comment = {
-                    id: newCommentRaw.id,
-                    postId: newCommentRaw.post_id,
-                    parentId: newCommentRaw.parent_id || null,
-                    authorAnonId: 'New User',
-                    displayName: 'New User', // Placeholder
-                    authorAvatarColor: '#667eea',
-                    authorAvatarUrl: undefined,
-                    text: newCommentRaw.text,
-                    likesCount: newCommentRaw.likes_count || 0,
-                    isLiked: false,
-                    createdAt: new Date(newCommentRaw.created_at),
-                };
+    // Realtime subscription for new comments using Firebase
+    useFirestoreCollection({
+        collectionName: 'comments',
+        constraints: [
+            where('post_id', '==', post.id),
+            orderBy('created_at', 'desc'),
+        ],
+        onChange: (changes) => {
+            changes.forEach(change => {
+                if (change.type === 'added') {
+                    const newCommentRaw = change.doc.data;
+                    // Transform raw comment data to Comment type
+                    const newCommentData: Comment = {
+                        id: change.doc.id,
+                        postId: newCommentRaw.post_id,
+                        parentId: newCommentRaw.parent_id || null,
+                        authorAnonId: newCommentRaw.author_anon_id || 'New User',
+                        displayName: newCommentRaw.display_name || 'New User',
+                        authorAvatarColor: newCommentRaw.avatar_color || '#667eea',
+                        authorAvatarUrl: newCommentRaw.avatar_url,
+                        text: newCommentRaw.text,
+                        likesCount: newCommentRaw.likes_count || 0,
+                        isLiked: false,
+                        createdAt: newCommentRaw.created_at?.toDate?.() || new Date(newCommentRaw.created_at) || new Date(),
+                    };
 
-                setComments(prev => {
-                    // Avoid duplicates
-                    if (prev.some(c => c.id === newCommentData.id)) {
-                        return prev;
+                    setComments(prev => {
+                        // Avoid duplicates
+                        if (prev.some(c => c.id === newCommentData.id)) {
+                            return prev;
+                        }
+                        // Insert at correct position based on creation time
+                        const updated = [...prev, newCommentData].sort((a, b) =>
+                            a.createdAt.getTime() - b.createdAt.getTime()
+                        );
+                        return updated;
+                    });
+
+                    // Vibrate on new comment
+                    if ('vibrate' in navigator) {
+                        navigator.vibrate(30);
                     }
-                    return [...prev, newCommentData];
-                });
-
-                // Vibrate on new comment
-                if ('vibrate' in navigator) {
-                    navigator.vibrate(30);
                 }
-            }
+            });
         },
-        events: ['INSERT'],
         debounceMilliseconds: 100
     });
 

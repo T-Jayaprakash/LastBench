@@ -1,147 +1,314 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { supabase } from '../../services/supabaseClient';
-import { Post } from '../../types';
-import { mapDbPostToPost } from '../../services/api';
+/**
+ * ============================================================================
+ * USE FEED HOOK - Firebase Firestore Implementation
+ * ============================================================================
+ * 
+ * Custom hook for fetching and managing the post feed
+ * Uses Firestore for data and real-time updates
+ * 
+ * Features:
+ * - Paginated feed loading
+ * - Local caching for instant initial render
+ * - Real-time updates for new posts
+ * - Pull-to-refresh support
+ * - Optimistic UI updates
+ * 
+ * ============================================================================
+ */
 
-const PAGE_SIZE = 10;
-const CACHE_KEY = 'genfess_feed_cache_v1';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import {
+    collection,
+    query,
+    where,
+    orderBy,
+    limit,
+    startAfter,
+    getDocs,
+    onSnapshot,
+    QueryDocumentSnapshot,
+    DocumentData
+} from 'firebase/firestore';
+import { db } from '../../services/firebase';
+import { Post } from '../../types';
+import { mapDocToPost } from '../../services/firestoreService';
+
+// ============================================================================
+// CONFIGURATION
+// ============================================================================
+
+const PAGE_SIZE = 15;
+const CACHE_KEY = 'genfess_feed_cache_v3';
+
+// ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
+
+/**
+ * Get liked post IDs for current user
+ */
+async function getUserLikedPostIds(userId: string, postIds: string[]): Promise<Set<string>> {
+    if (!userId || postIds.length === 0) return new Set();
+
+    try {
+        const likedIds = new Set<string>();
+        const batchSize = 30;
+
+        for (let i = 0; i < postIds.length; i += batchSize) {
+            const batch = postIds.slice(i, i + batchSize);
+            const interactionsRef = collection(db, 'interactions');
+            const q = query(
+                interactionsRef,
+                where('user_id', '==', userId),
+                where('type', '==', 'like'),
+                where('post_id', 'in', batch)
+            );
+
+            const snapshot = await getDocs(q);
+            snapshot.docs.forEach(doc => {
+                const postId = doc.data().post_id;
+                if (postId) likedIds.add(postId);
+            });
+        }
+
+        return likedIds;
+    } catch (err) {
+        console.error('getUserLikedPostIds error:', err);
+        return new Set();
+    }
+}
+
+// ============================================================================
+// USE FEED HOOK
+// ============================================================================
 
 export const useFeed = (userCollege: string | undefined, userId: string | undefined) => {
     const [posts, setPosts] = useState<Post[]>([]);
     const [loading, setLoading] = useState(true);
     const [hasMore, setHasMore] = useState(true);
-    const [page, setPage] = useState(0);
     const [refreshing, setRefreshing] = useState(false);
 
-    // Cache initialization
+    const lastDocRef = useRef<QueryDocumentSnapshot<DocumentData> | null>(null);
+    const isLoadingMore = useRef(false);
+
+    // ========================================================================
+    // CACHE MANAGEMENT
+    // ========================================================================
+
+    // Load cached posts on initial mount
     useEffect(() => {
         const cached = localStorage.getItem(CACHE_KEY);
         if (cached) {
             try {
                 const parsed = JSON.parse(cached);
                 if (Array.isArray(parsed) && parsed.length > 0) {
-                    // Rehydrate dates
                     const hydrated = parsed.map((p: any) => ({
                         ...p,
                         createdAt: new Date(p.createdAt)
                     }));
                     setPosts(hydrated);
                     setLoading(false);
+                    console.log(`📦 Loaded ${hydrated.length} posts from cache`);
                 }
             } catch (e) {
-                console.error('Cache parse error', e);
+                console.error('Cache parse error:', e);
+                localStorage.removeItem(CACHE_KEY);
             }
         }
-    }, [userCollege]); // Reset cache if college changes? Logic usually stable for single user
+    }, []);
 
-    const fetchPosts = useCallback(async (pageNum: number, isRefresh = false) => {
-        if (!userCollege) return;
+    // ========================================================================
+    // FETCH POSTS
+    // ========================================================================
+
+    const fetchPosts = useCallback(async (isRefresh = false) => {
+        if (!userCollege) {
+            setLoading(false);
+            return;
+        }
 
         try {
-            const { data, error } = await supabase.rpc('get_posts_paginated', {
-                p_college: userCollege,
-                p_limit: PAGE_SIZE,
-                p_offset: pageNum * PAGE_SIZE,
-                p_user_id: userId || null
-            });
+            const postsRef = collection(db, 'posts');
+            let q;
 
-            if (error) throw error;
+            if (isRefresh || !lastDocRef.current) {
+                // Initial load or refresh
+                q = query(
+                    postsRef,
+                    where('college', '==', userCollege),
+                    orderBy('created_at', 'desc'),
+                    limit(PAGE_SIZE)
+                );
+            } else {
+                // Load more (pagination)
+                q = query(
+                    postsRef,
+                    where('college', '==', userCollege),
+                    orderBy('created_at', 'desc'),
+                    startAfter(lastDocRef.current),
+                    limit(PAGE_SIZE)
+                );
+            }
 
-            const mappedPosts = (data || []).map((p: any) => ({
-                ...mapDbPostToPost(p),
-                isLiked: p.is_liked // RPC returns snake_case
-            }));
+            const snapshot = await getDocs(q);
+            const newPosts: Post[] = snapshot.docs.map(doc => mapDocToPost(doc as any));
+
+            // Update last doc for pagination
+            if (snapshot.docs.length > 0) {
+                lastDocRef.current = snapshot.docs[snapshot.docs.length - 1];
+            }
+
+            // Check likes for posts
+            if (userId && newPosts.length > 0) {
+                const postIds = newPosts.map(p => p.id);
+                const likedPostIds = await getUserLikedPostIds(userId, postIds);
+                newPosts.forEach(post => {
+                    post.isLiked = likedPostIds.has(post.id);
+                });
+            }
 
             setPosts(prev => {
-                const newPosts = isRefresh ? mappedPosts : [...prev, ...mappedPosts];
-                // Remove duplicates based on ID
-                const uniquePosts = Array.from(new Map(newPosts.map((p: Post) => [p.id, p])).values());
+                let updatedPosts: Post[];
 
-                // Update Cache if page 0
-                if (pageNum === 0) {
-                    localStorage.setItem(CACHE_KEY, JSON.stringify(uniquePosts.slice(0, PAGE_SIZE)));
+                if (isRefresh) {
+                    updatedPosts = newPosts;
+                    lastDocRef.current = snapshot.docs[snapshot.docs.length - 1] || null;
+                } else {
+                    // Append and dedupe
+                    const combined = [...prev, ...newPosts];
+                    updatedPosts = Array.from(
+                        new Map(combined.map(p => [p.id, p])).values()
+                    );
                 }
 
-                return uniquePosts;
+                // Cache first page
+                if (isRefresh && updatedPosts.length > 0) {
+                    try {
+                        localStorage.setItem(CACHE_KEY, JSON.stringify(updatedPosts.slice(0, PAGE_SIZE)));
+                    } catch (e) {
+                        console.warn('Cache save failed:', e);
+                    }
+                }
+
+                return updatedPosts;
             });
 
-            setHasMore(data.length === PAGE_SIZE);
-            if (isRefresh) setPage(0);
+            setHasMore(snapshot.docs.length === PAGE_SIZE);
+            console.log(`📨 Fetched ${newPosts.length} posts for ${userCollege}`);
         } catch (error) {
             console.error('Feed fetch error:', error);
         } finally {
             setLoading(false);
             setRefreshing(false);
+            isLoadingMore.current = false;
         }
     }, [userCollege, userId]);
 
-    // Initial Load
+    // ========================================================================
+    // INITIAL LOAD
+    // ========================================================================
+
     useEffect(() => {
         if (userCollege) {
-            fetchPosts(0, true);
+            fetchPosts(true);
         }
     }, [userCollege, userId, fetchPosts]);
 
-    // Load More
-    const loadMore = useCallback(() => {
-        if (!hasMore || loading) return;
-        const nextPage = page + 1;
-        setPage(nextPage);
-        fetchPosts(nextPage);
-    }, [hasMore, loading, page, fetchPosts]);
+    // ========================================================================
+    // REALTIME SUBSCRIPTION (New Posts)
+    // ========================================================================
 
-    // Refresh
-    const refresh = useCallback(() => {
-        setRefreshing(true);
-        fetchPosts(0, true);
-    }, [fetchPosts]);
-
-    // Realtime: Lightweight Notifications
     useEffect(() => {
         if (!userCollege) return;
 
-        const channel = supabase
-            .channel('feed_updates')
-            .on(
-                'postgres_changes',
-                {
-                    event: 'INSERT',
-                    schema: 'public',
-                    table: 'feed_events'
-                },
-                async (payload) => {
-                    const { post_id } = payload.new;
-                    // Fetch the single new post securely via RPC
-                    const { data, error } = await supabase.rpc('get_post_by_id', {
-                        p_id: post_id,
-                        p_user_id: userId || null
-                    });
+        const postsRef = collection(db, 'posts');
+        const q = query(
+            postsRef,
+            where('college', '==', userCollege),
+            orderBy('created_at', 'desc'),
+            limit(1)
+        );
 
-                    if (!error && data && data.length > 0) {
-                        const newPost = {
-                            ...mapDbPostToPost(data[0]),
-                            isLiked: data[0].is_liked
-                        };
+        // Track the first snapshot to ignore initial data
+        let isFirstSnapshot = true;
 
-                        // Only add if belongs to user's college (RPC doesn't filter by college for ID fetch, need check)
-                        // Actually get_post_by_id returns college.
-                        if (newPost.college === userCollege) {
-                            setPosts(prev => {
-                                // Check duplicate
-                                if (prev.find(p => p.id === newPost.id)) return prev;
-                                return [newPost, ...prev];
+        const unsubscribe = onSnapshot(q, async (snapshot) => {
+            // Skip the first snapshot (it's the initial data)
+            if (isFirstSnapshot) {
+                isFirstSnapshot = false;
+                return;
+            }
+
+            snapshot.docChanges().forEach(async change => {
+                if (change.type === 'added') {
+                    const newPost = mapDocToPost(change.doc as any);
+
+                    // Check if post is already in the list
+                    setPosts(prev => {
+                        if (prev.find(p => p.id === newPost.id)) {
+                            return prev;
+                        }
+
+                        // Check if user liked this post
+                        if (userId) {
+                            getUserLikedPostIds(userId, [newPost.id]).then(likedIds => {
+                                if (likedIds.has(newPost.id)) {
+                                    setPosts(current =>
+                                        current.map(p =>
+                                            p.id === newPost.id ? { ...p, isLiked: true } : p
+                                        )
+                                    );
+                                }
                             });
                         }
-                    }
+
+                        console.log('🆕 New post received via realtime:', newPost.id);
+                        return [newPost, ...prev];
+                    });
                 }
-            )
-            .subscribe();
+            });
+        }, (error) => {
+            console.error('Feed realtime subscription error:', error);
+        });
+
+        console.log(`📡 Subscribed to realtime feed for ${userCollege}`);
 
         return () => {
-            supabase.removeChannel(channel);
+            unsubscribe();
+            console.log(`📡 Unsubscribed from realtime feed`);
         };
     }, [userCollege, userId]);
 
-    return { posts, setPosts, loading, hasMore, loadMore, refresh, refreshing };
+    // ========================================================================
+    // PUBLIC METHODS
+    // ========================================================================
+
+    const loadMore = useCallback(() => {
+        if (!hasMore || loading || isLoadingMore.current) return;
+
+        isLoadingMore.current = true;
+        fetchPosts(false);
+    }, [hasMore, loading, fetchPosts]);
+
+    const refresh = useCallback(() => {
+        setRefreshing(true);
+        lastDocRef.current = null; // Reset pagination
+        fetchPosts(true);
+    }, [fetchPosts]);
+
+    // ========================================================================
+    // RETURN VALUE
+    // ========================================================================
+
+    return {
+        posts,
+        setPosts,
+        loading,
+        hasMore,
+        loadMore,
+        refresh,
+        refreshing
+    };
 };
 
+export default useFeed;

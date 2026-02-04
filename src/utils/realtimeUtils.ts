@@ -1,152 +1,146 @@
-import { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
+/**
+ * ============================================================================
+ * REALTIME UTILITIES - Firebase Compatible
+ * ============================================================================
+ * 
+ * Utility functions for handling realtime data changes
+ * Updated for Firebase Firestore compatibility
+ * 
+ * ============================================================================
+ */
+
+import { DocumentData } from 'firebase/firestore';
 
 /**
- * Debounce function to prevent excessive updates
+ * Firestore change types
  */
-export function debounce<T extends (...args: any[]) => any>(
-    func: T,
-    wait: number
-): (...args: Parameters<T>) => void {
-    let timeout: NodeJS.Timeout | null = null;
+export type FirestoreChangeType = 'added' | 'modified' | 'removed';
 
-    return function executedFunction(...args: Parameters<T>) {
-        const later = () => {
-            timeout = null;
-            func(...args);
-        };
-
-        if (timeout) clearTimeout(timeout);
-        timeout = setTimeout(later, wait);
+/**
+ * Firestore change payload (compatible with our hooks)
+ */
+export interface FirestoreChangePayload {
+    type: FirestoreChangeType;
+    doc: {
+        id: string;
+        data: DocumentData;
     };
 }
 
 /**
- * Merge a realtime INSERT event into an array
+ * Legacy compatibility type (matches old Supabase format)
  */
-export function mergeRealtimeInsert<T extends { id: string }>(
-    currentList: T[],
-    payload: RealtimePostgresChangesPayload<T>
-): T[] {
-    if (payload.eventType !== 'INSERT') return currentList;
-
-    const newItem = payload.new as T;
-
-    // Check for duplicates
-    const exists = currentList.some(item => item.id === newItem.id);
-    if (exists) {
-        console.log('Duplicate item detected, skipping insert:', newItem.id);
-        return currentList;
-    }
-
-    // Prepend new item to maintain chronological order
-    return [newItem, ...currentList];
+export interface RealtimePayload<T = any> {
+    eventType: 'INSERT' | 'UPDATE' | 'DELETE';
+    new: T;
+    old?: T;
 }
 
 /**
- * Merge a realtime UPDATE event into an array
+ * Merge a new item into an array, avoiding duplicates
+ * Useful for realtime INSERT events
+ */
+export function mergeRealtimeInsert<T extends { id: string }>(
+    currentList: T[],
+    newItem: T,
+    prepend: boolean = true
+): T[] {
+    // Check for duplicates
+    if (currentList.some(item => item.id === newItem.id)) {
+        return currentList;
+    }
+
+    return prepend ? [newItem, ...currentList] : [...currentList, newItem];
+}
+
+/**
+ * Update an item in an array based on ID
+ * Useful for realtime UPDATE events
  */
 export function mergeRealtimeUpdate<T extends { id: string }>(
     currentList: T[],
-    payload: RealtimePostgresChangesPayload<T>
+    updatedItem: Partial<T> & { id: string }
 ): T[] {
-    if (payload.eventType !== 'UPDATE') return currentList;
-
-    const updatedItem = payload.new as T;
-
     return currentList.map(item =>
-        item.id === updatedItem.id ? updatedItem : item
+        item.id === updatedItem.id
+            ? { ...item, ...updatedItem }
+            : item
     );
 }
 
 /**
- * Merge a realtime DELETE event into an array
+ * Remove an item from an array based on ID
+ * Useful for realtime DELETE events
  */
 export function mergeRealtimeDelete<T extends { id: string }>(
     currentList: T[],
-    payload: RealtimePostgresChangesPayload<T>
+    deletedId: string
 ): T[] {
-    if (payload.eventType !== 'DELETE') return currentList;
-
-    const deletedItem = payload.old as T;
-
-    return currentList.filter(item => item.id !== deletedItem.id);
+    return currentList.filter(item => item.id !== deletedId);
 }
 
 /**
- * Generic merge function for realtime events
+ * Convert Firestore change type to legacy format
  */
-export function mergeRealtimeEvent<T extends { id: string }>(
+export function mapChangeTypeToLegacy(type: FirestoreChangeType): 'INSERT' | 'UPDATE' | 'DELETE' {
+    switch (type) {
+        case 'added': return 'INSERT';
+        case 'modified': return 'UPDATE';
+        case 'removed': return 'DELETE';
+        default: return 'UPDATE';
+    }
+}
+
+/**
+ * Generic handler for realtime changes
+ * Automatically merges, updates, or deletes based on event type
+ */
+export function handleRealtimeChange<T extends { id: string }>(
     currentList: T[],
-    payload: RealtimePostgresChangesPayload<T>
+    type: FirestoreChangeType,
+    data: T
 ): T[] {
-    switch (payload.eventType) {
-        case 'INSERT':
-            return mergeRealtimeInsert(currentList, payload);
-        case 'UPDATE':
-            return mergeRealtimeUpdate(currentList, payload);
-        case 'DELETE':
-            return mergeRealtimeDelete(currentList, payload);
+    switch (type) {
+        case 'added':
+            return mergeRealtimeInsert(currentList, data);
+        case 'modified':
+            return mergeRealtimeUpdate(currentList, data);
+        case 'removed':
+            return mergeRealtimeDelete(currentList, data.id);
         default:
             return currentList;
     }
 }
 
 /**
- * Check if a payload originated from the current client
- * (Requires client_id to be included in row data)
+ * Debounce a function
  */
-export function isOwnClientPayload(
-    payload: RealtimePostgresChangesPayload<any>,
-    clientId: string
-): boolean {
-    const data = payload.new || payload.old;
-    return data?.client_id === clientId;
+export function debounce<T extends (...args: any[]) => void>(
+    func: T,
+    wait: number
+): T {
+    let timeout: ReturnType<typeof setTimeout> | null = null;
+
+    return ((...args: Parameters<T>) => {
+        if (timeout) clearTimeout(timeout);
+        timeout = setTimeout(() => func(...args), wait);
+    }) as T;
 }
 
 /**
- * Generate a unique client ID for deduplication
+ * Throttle a function
  */
-export function generateClientId(): string {
-    return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-}
+export function throttle<T extends (...args: any[]) => void>(
+    func: T,
+    limit: number
+): T {
+    let inThrottle = false;
 
-/**
- * Coalesce multiple rapid updates into a single state update
- */
-export class UpdateCoalescer<T> {
-    private updates: Map<string, T> = new Map();
-    private timeout: NodeJS.Timeout | null = null;
-    private callback: (updates: T[]) => void;
-    private delay: number;
-
-    constructor(callback: (updates: T[]) => void, delay: number = 150) {
-        this.callback = callback;
-        this.delay = delay;
-    }
-
-    add(key: string, value: T) {
-        this.updates.set(key, value);
-
-        if (this.timeout) clearTimeout(this.timeout);
-
-        this.timeout = setTimeout(() => {
-            this.flush();
-        }, this.delay);
-    }
-
-    flush() {
-        if (this.updates.size > 0) {
-            this.callback(Array.from(this.updates.values()));
-            this.updates.clear();
+    return ((...args: Parameters<T>) => {
+        if (!inThrottle) {
+            func(...args);
+            inThrottle = true;
+            setTimeout(() => inThrottle = false, limit);
         }
-        this.timeout = null;
-    }
-
-    clear() {
-        this.updates.clear();
-        if (this.timeout) {
-            clearTimeout(this.timeout);
-            this.timeout = null;
-        }
-    }
+    }) as T;
 }

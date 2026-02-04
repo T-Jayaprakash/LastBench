@@ -2,6 +2,8 @@ import { initializeApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
 import { getMessaging } from 'firebase/messaging';
 import { getFunctions } from 'firebase/functions';
+import { getAuth } from 'firebase/auth'; // Added
+import { getStorage } from 'firebase/storage'; // Added
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "YOUR_API_KEY",
@@ -14,6 +16,8 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
+export const auth = getAuth(app); // Exported
+export const storage = getStorage(app); // Exported
 export const messaging = getMessaging(app);
 export const functions = getFunctions(app);
 

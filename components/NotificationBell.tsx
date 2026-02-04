@@ -1,7 +1,18 @@
+/**
+ * ============================================================================
+ * NOTIFICATION BELL COMPONENT
+ * ============================================================================
+ * 
+ * Instagram-style notification bell with real-time updates
+ * Uses Firebase Firestore for notifications
+ * 
+ * ============================================================================
+ */
+
 import React, { useState, useEffect } from 'react';
 import { NotificationWithPost } from '../types/notifications';
 import { BellIcon, XMarkIcon } from './Icons';
-import { useSupabaseRealtimeFiltered } from '../src/hooks/useSupabaseRealtime';
+import { useNotificationsRealtime } from '../src/hooks/useFirebaseRealtime';
 import * as notificationService from '../services/notificationService';
 
 interface NotificationBellProps {
@@ -25,23 +36,22 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ userId }) => {
         }
     }, [userId]);
 
-    // Subscribe to new notifications in realtime
-    useSupabaseRealtimeFiltered({
-        table: 'notifications',
-        filter: `user_id=eq.${userId}`,
-        callback: (payload) => {
-            if (payload.eventType === 'INSERT') {
-                setUnreadCount(prev => prev + 1);
-                // Optionally show a toast or play a sound
-                if ('vibrate' in navigator) {
-                    navigator.vibrate(50);
-                }
-            } else if (payload.eventType === 'UPDATE' && payload.new.read) {
+    // Subscribe to new notifications in realtime using Firebase
+    useNotificationsRealtime({
+        userId,
+        onNewNotification: (notification) => {
+            setUnreadCount(prev => prev + 1);
+            // Optionally vibrate on new notification
+            if ('vibrate' in navigator) {
+                navigator.vibrate(50);
+            }
+        },
+        onUpdated: (notificationId, read) => {
+            if (read) {
                 setUnreadCount(prev => Math.max(0, prev - 1));
             }
         },
-        events: ['INSERT', 'UPDATE'],
-        debounceMilliseconds: 100
+        enabled: !!userId,
     });
 
     const handleOpenNotifications = async () => {

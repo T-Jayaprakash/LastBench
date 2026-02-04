@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { User } from '../types/index';
 import { BellIcon } from './Icons';
 import * as notificationService from '../services/notificationService';
-import { useSupabaseRealtimeFiltered } from '../src/hooks/useSupabaseRealtime';
+import { useNotificationsRealtime } from '../src/hooks/useFirebaseRealtime';
 
 interface HeaderProps {
     isVisible?: boolean;
@@ -23,19 +23,18 @@ const Header: React.FC<HeaderProps> = ({ isVisible = true, user, onNotificationC
         fetchUnreadCount();
     }, [user]);
 
-    // Subscribe to new notifications in realtime
-    useSupabaseRealtimeFiltered({
-        table: 'notifications',
-        filter: user ? `user_id=eq.${user.userId}` : null,
-        callback: (payload) => {
-            if (payload.eventType === 'INSERT') {
-                setUnreadCount(prev => prev + 1);
-            } else if (payload.eventType === 'UPDATE' && payload.new.read) {
+    // Subscribe to new notifications in realtime using Firebase
+    useNotificationsRealtime({
+        userId: user?.userId || '',
+        onNewNotification: () => {
+            setUnreadCount(prev => prev + 1);
+        },
+        onUpdated: (notificationId, read) => {
+            if (read) {
                 setUnreadCount(prev => Math.max(0, prev - 1));
             }
         },
-        events: ['INSERT', 'UPDATE'],
-        debounceMilliseconds: 100
+        enabled: !!user?.userId,
     });
 
     return (

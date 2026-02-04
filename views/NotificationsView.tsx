@@ -1,8 +1,19 @@
+/**
+ * ============================================================================
+ * NOTIFICATIONS VIEW
+ * ============================================================================
+ * 
+ * Full-page notifications screen with real-time updates
+ * Uses Firebase Firestore for notifications
+ * 
+ * ============================================================================
+ */
+
 import React, { useState, useEffect } from 'react';
 import { NotificationWithPost } from '../types/notifications';
 import { BellIcon, ArrowPathIcon } from '../components/Icons';
 import * as notificationService from '../services/notificationService';
-import { useSupabaseRealtimeFiltered } from '../src/hooks/useSupabaseRealtime';
+import { useNotificationsRealtime } from '../src/hooks/useFirebaseRealtime';
 
 interface NotificationsViewProps {
     userId: string;
@@ -30,26 +41,23 @@ const NotificationsView: React.FC<NotificationsViewProps> = ({ userId, onBack })
         }
     }, [userId]);
 
-    // Subscribe to new notifications in realtime
-    useSupabaseRealtimeFiltered({
-        table: 'notifications',
-        filter: `user_id=eq.${userId}`,
-        callback: (payload) => {
-            if (payload.eventType === 'INSERT' && payload.new) {
-                // Refresh to get full notification data with profile
-                fetchNotifications();
-                if ('vibrate' in navigator) {
-                    navigator.vibrate(50);
-                }
-            } else if (payload.eventType === 'UPDATE') {
-                // Update existing notification
-                setNotifications(prev =>
-                    prev.map(n => n.id === payload.new.id ? { ...n, read: payload.new.read } : n)
-                );
+    // Subscribe to new notifications in realtime using Firebase
+    useNotificationsRealtime({
+        userId,
+        onNewNotification: (notification) => {
+            // Refresh to get full notification data with profile
+            fetchNotifications();
+            if ('vibrate' in navigator) {
+                navigator.vibrate(50);
             }
         },
-        events: ['INSERT', 'UPDATE'],
-        debounceMilliseconds: 100
+        onUpdated: (notificationId, read) => {
+            // Update existing notification
+            setNotifications(prev =>
+                prev.map(n => n.id === notificationId ? { ...n, read } : n)
+            );
+        },
+        enabled: !!userId,
     });
 
     const handleMarkAllRead = async () => {
