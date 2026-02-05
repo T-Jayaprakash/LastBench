@@ -15,6 +15,7 @@ import SignUpView from './views/SignUpView';
 import { ToastProvider, useToast } from './components/Toast'; // Import Provider and hook
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { checkVersion, shouldCheckVersion, markVersionChecked, getCurrentVersion } from './services/versionService';
+import { PWAInstallPrompt } from './components/PWAInstallPrompt';
 
 // Lazy Load heavy components to improve initial rendering speed
 const CommentView = lazy(() => import('./views/CommentView'));
@@ -73,6 +74,7 @@ const AppContent: React.FC = () => {
     const [updatedPost, setUpdatedPost] = useState<Post | null>(null);
     const [showUpdateModal, setShowUpdateModal] = useState(false);
     const [updateInfo, setUpdateInfo] = useState<any>(null);
+    const [showPWAInstall, setShowPWAInstall] = useState(true);
 
 
     // Use Toast for share notifications
@@ -492,6 +494,11 @@ const AppContent: React.FC = () => {
                     />
                 )}
             </Suspense>
+
+            {/* PWA Install Prompt */}
+            {showPWAInstall && (
+                <PWAInstallPrompt onDismiss={() => setShowPWAInstall(false)} />
+            )}
         </div>
     );
 };

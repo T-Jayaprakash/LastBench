@@ -1,0 +1,161 @@
+{
+    "name": "Genfess - Anonymous Confessions",
+    "short_name": "Genfess",
+    "description": "Share your thoughts anonymously with your college community. The ultimate anonymous confession platform.",
+    "start_url": "/",
+    "scope": "/",
+    "id": "/",
+    "display": "standalone",
+    "display_override": [
+        "standalone",
+        "window-controls-overlay"
+    ],
+    "background_color": "#0f0f0f",
+    "theme_color": "#8b5cf6",
+    "orientation": "portrait-primary",
+    "lang": "en",
+    "dir": "ltr",
+    "categories": [
+        "social",
+        "lifestyle",
+        "entertainment"
+    ],
+    "prefer_related_applications": false,
+    "icons": [
+        {
+            "src": "/assets/Genfess.png",
+            "sizes": "48x48",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "/assets/Genfess.png",
+            "sizes": "72x72",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "/assets/Genfess.png",
+            "sizes": "96x96",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "/assets/Genfess.png",
+            "sizes": "128x128",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "/assets/Genfess.png",
+            "sizes": "144x144",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "/assets/Genfess.png",
+            "sizes": "152x152",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "/assets/Genfess.png",
+            "sizes": "180x180",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "/assets/Genfess.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "/assets/Genfess.png",
+            "sizes": "256x256",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "/assets/Genfess.png",
+            "sizes": "384x384",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "/assets/Genfess.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "/assets/Genfess.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable"
+        }
+    ],
+    "screenshots": [
+        {
+            "src": "/assets/splash.png",
+            "sizes": "1080x1920",
+            "type": "image/png",
+            "form_factor": "narrow",
+            "label": "Genfess - Share anonymous confessions"
+        }
+    ],
+    "shortcuts": [
+        {
+            "name": "Write Confession",
+            "short_name": "Confess",
+            "description": "Share a new anonymous confession",
+            "url": "/?action=compose",
+            "icons": [
+                {
+                    "src": "/assets/Genfess.png",
+                    "sizes": "192x192",
+                    "type": "image/png"
+                }
+            ]
+        },
+        {
+            "name": "Trending",
+            "short_name": "Trending",
+            "description": "View trending confessions",
+            "url": "/?tab=trending",
+            "icons": [
+                {
+                    "src": "/assets/Genfess.png",
+                    "sizes": "192x192",
+                    "type": "image/png"
+                }
+            ]
+        }
+    ],
+    "share_target": {
+        "action": "/?action=share",
+        "method": "POST",
+        "enctype": "multipart/form-data",
+        "params": {
+            "title": "title",
+            "text": "text",
+            "url": "url",
+            "files": [
+                {
+                    "name": "media",
+                    "accept": [
+                        "image/*"
+                    ]
+                }
+            ]
+        }
+    },
+    "protocol_handlers": [
+        {
+            "protocol": "web+genfess",
+            "url": "/?post=%s"
+        }
+    ],
+    "related_applications": [],
+    "handle_links": "preferred"
+}

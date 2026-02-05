@@ -3,15 +3,288 @@
 
 <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/assets/Genfess.png" />
+    <link rel="icon" type="image/png" href="/assets/Genfess.png" />
     <meta name="viewport"
         content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-    <title>Genfess</title>
+    <title>Genfess - Anonymous Confessions</title>
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json" crossorigin="use-credentials" />
+
+    <!-- Theme Color -->
+    <meta name="theme-color" content="#8b5cf6" />
+    <meta name="msapplication-TileColor" content="#8b5cf6" />
+    <meta name="msapplication-navbutton-color" content="#8b5cf6" />
+
+    <!-- iOS PWA Support - Full Configuration -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Genfess" />
+    <meta name="mobile-web-app-capable" content="yes" />
+
+    <!-- iOS Touch Icons - Multiple Sizes -->
+    <link rel="apple-touch-icon" href="/assets/Genfess.png" />
+    <link rel="apple-touch-icon" sizes="152x152" href="/assets/Genfess.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/Genfess.png" />
+    <link rel="apple-touch-icon" sizes="167x167" href="/assets/Genfess.png" />
+
+    <!-- iOS Splash Screens for All Devices -->
+    <!-- iPhone X / XS / 11 Pro / 12 mini -->
+    <link rel="apple-touch-startup-image"
+        media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3)"
+        href="/assets/splash.png" />
+    <!-- iPhone XR / 11 -->
+    <link rel="apple-touch-startup-image"
+        media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2)"
+        href="/assets/splash.png" />
+    <!-- iPhone XS Max / 11 Pro Max -->
+    <link rel="apple-touch-startup-image"
+        media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3)"
+        href="/assets/splash.png" />
+    <!-- iPhone 12 / 12 Pro / 13 / 13 Pro / 14 -->
+    <link rel="apple-touch-startup-image"
+        media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)"
+        href="/assets/splash.png" />
+    <!-- iPhone 12 Pro Max / 13 Pro Max / 14 Plus -->
+    <link rel="apple-touch-startup-image"
+        media="(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3)"
+        href="/assets/splash.png" />
+    <!-- iPhone 14 Pro -->
+    <link rel="apple-touch-startup-image"
+        media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3)"
+        href="/assets/splash.png" />
+    <!-- iPhone 14 Pro Max / 15 Pro Max / 16 Pro Max -->
+    <link rel="apple-touch-startup-image"
+        media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3)"
+        href="/assets/splash.png" />
+    <!-- iPhone 15 / 15 Pro / 16 / 16 Pro -->
+    <link rel="apple-touch-startup-image"
+        media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3)"
+        href="/assets/splash.png" />
+    <!-- iPhone SE (2nd/3rd gen) -->
+    <link rel="apple-touch-startup-image"
+        media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)"
+        href="/assets/splash.png" />
+    <!-- iPad Pro 12.9" -->
+    <link rel="apple-touch-startup-image"
+        media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2)"
+        href="/assets/splash.png" />
+    <!-- iPad Pro 11" -->
+    <link rel="apple-touch-startup-image"
+        media="(device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2)"
+        href="/assets/splash.png" />
+    <!-- iPad Air / iPad 10th gen -->
+    <link rel="apple-touch-startup-image"
+        media="(device-width: 820px) and (device-height: 1180px) and (-webkit-device-pixel-ratio: 2)"
+        href="/assets/splash.png" />
+    <!-- iPad Mini -->
+    <link rel="apple-touch-startup-image"
+        media="(device-width: 744px) and (device-height: 1133px) and (-webkit-device-pixel-ratio: 2)"
+        href="/assets/splash.png" />
+
+    <!-- SEO Meta Tags -->
+    <meta name="description"
+        content="Share your thoughts anonymously with your college community. Genfess is the ultimate anonymous confession platform." />
+    <meta name="keywords" content="confessions, anonymous, college, community, social, gossip, secrets" />
+    <meta name="author" content="Genfess" />
+    <meta name="robots" content="index, follow" />
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="Genfess - Anonymous Confessions" />
+    <meta property="og:description" content="Share your thoughts anonymously with your college community" />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="/assets/Genfess.png" />
+    <meta property="og:url" content="https://genfess.app" />
+    <meta property="og:site_name" content="Genfess" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Genfess - Anonymous Confessions" />
+    <meta name="twitter:description" content="Share your thoughts anonymously with your college community" />
+    <meta name="twitter:image" content="/assets/Genfess.png" />
+
+    <!-- Preconnect to Firebase -->
+    <link rel="preconnect" href="https://firestore.googleapis.com" />
+    <link rel="preconnect" href="https://firebase.googleapis.com" />
+    <link rel="dns-prefetch" href="https://firestore.googleapis.com" />
+    <link rel="dns-prefetch" href="https://firebase.googleapis.com" />
+
+    <!-- Prevent FOUC -->
+    <style>
+        html {
+            background-color: #0f0f0f;
+        }
+
+        #root {
+            min-height: 100vh;
+            background-color: #0f0f0f;
+        }
+
+        /* iOS safe area support */
+        @supports (padding: max(0px)) {
+            body {
+                padding-top: env(safe-area-inset-top);
+                padding-bottom: env(safe-area-inset-bottom);
+                padding-left: env(safe-area-inset-left);
+                padding-right: env(safe-area-inset-right);
+            }
+        }
+
+        /* Loading spinner */
+        .app-loader {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #0f0f0f;
+            z-index: 9999;
+        }
+
+        .loader-spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(139, 92, 246, 0.2);
+            border-top-color: #8b5cf6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
 </head>
 
 <body>
+    <!-- Loading State -->
+    <div class="app-loader" id="app-loader">
+        <div class="loader-spinner"></div>
+    </div>
+
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
+
+    <!-- Service Worker Registration with Update Support -->
+    <script>
+        // Hide loader when app is ready
+        window.addEventListener('load', function () {
+            setTimeout(function () {
+                var loader = document.getElementById('app-loader');
+                if (loader) {
+                    loader.style.opacity = '0';
+                    loader.style.transition = 'opacity 0.3s ease-out';
+                    setTimeout(function () {
+                        loader.style.display = 'none';
+                    }, 300);
+                }
+            }, 500);
+        });
+
+        // Register Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', async () => {
+                try {
+                    // Register main service worker
+                    const registration = await navigator.serviceWorker.register('/sw.js', {
+                        scope: '/'
+                    });
+                    console.log('[App] SW registered:', registration.scope);
+
+                    // Check for updates periodically
+                    setInterval(() => {
+                        registration.update();
+                    }, 1000 * 60 * 60); // Check every hour
+
+                    // Handle updates
+                    registration.addEventListener('updatefound', () => {
+                        const newWorker = registration.installing;
+                        newWorker.addEventListener('statechange', () => {
+                            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                // New version available
+                                console.log('[App] New version available');
+                                if (confirm('A new version of Genfess is available. Refresh to update?')) {
+                                    newWorker.postMessage({ type: 'SKIP_WAITING' });
+                                    window.location.reload();
+                                }
+                            }
+                        });
+                    });
+
+                    // Also register Firebase messaging SW
+                    await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+                    console.log('[App] Firebase SW registered');
+
+                } catch (error) {
+                    console.log('[App] SW registration failed:', error);
+                }
+            });
+
+            // Handle controller change (when new SW takes over)
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+                console.log('[App] New service worker activated');
+            });
+        }
+
+        // iOS PWA Detection and Enhancements
+        (function () {
+            // Detect if running as PWA
+            const isInStandaloneMode = () =>
+                (window.matchMedia('(display-mode: standalone)').matches) ||
+                (window.navigator.standalone) ||
+                document.referrer.includes('android-app://');
+
+            if (isInStandaloneMode()) {
+                document.documentElement.classList.add('pwa-mode');
+                console.log('[App] Running in PWA mode');
+            }
+
+            // iOS-specific fixes
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+            if (isIOS) {
+                document.documentElement.classList.add('ios-device');
+
+                // Prevent zoom on input focus
+                document.addEventListener('touchstart', function () { }, { passive: true });
+
+                // Fix for iOS viewport height
+                const setVH = () => {
+                    let vh = window.innerHeight * 0.01;
+                    document.documentElement.style.setProperty('--vh', vh + 'px');
+                };
+                setVH();
+                window.addEventListener('resize', setVH);
+
+                // Disable overscroll/bounce
+                document.body.addEventListener('touchmove', function (e) {
+                    if (e.target === document.body) {
+                        e.preventDefault();
+                    }
+                }, { passive: false });
+            }
+        })();
+
+        // Handle PWA Install Prompt
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            // Store for later use by the app
+            window.deferredPrompt = deferredPrompt;
+            console.log('[App] Install prompt ready');
+        });
+
+        window.addEventListener('appinstalled', () => {
+            console.log('[App] PWA was installed');
+            deferredPrompt = null;
+            window.deferredPrompt = null;
+        });
+    </script>
 </body>
 
 </html>
