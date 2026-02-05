@@ -31,23 +31,27 @@ const UpdateModal = lazy(() => import('./components/UpdateModal'));
 const SplashScreen = ({ isFinished }: { isFinished: boolean }) => {
     if (!isFinished) {
         return (
-            <div className={`fixed inset-0 z-50 flex flex-col items-center justify-center bg-background dark:bg-dark-background overflow-hidden`}>
-                <div className="absolute inset-0 opacity-40 dark:opacity-20 blur-[100px] animate-aurora"
+            <div className={`fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#4a0404] overflow-hidden`}>
+                <div className="absolute inset-0 opacity-40 blur-[100px] animate-pulse"
                     style={{
-                        backgroundImage: 'radial-gradient(circle at 50% 50%, #0095f6 0%, transparent 50%), radial-gradient(circle at 80% 20%, #d62976 0%, transparent 50%)',
-                        backgroundSize: '200% 200%'
+                        background: 'radial-gradient(circle at 50% 50%, #800000 0%, transparent 70%)',
                     }}>
                 </div>
 
                 <div className="relative z-10 flex flex-col items-center">
-                    <h1 className="text-7xl text-primary-text dark:text-dark-primary-text font-logo animate-text-blur-reveal tracking-wide drop-shadow-xl">
+                    <img
+                        src="/assets/Genfess.png"
+                        alt="Logo"
+                        className="w-32 h-32 mb-6 rounded-2xl shadow-2xl animate-fade-in-up"
+                    />
+                    <h1 className="text-6xl text-white font-logo animate-text-blur-reveal tracking-wide drop-shadow-xl" style={{ fontFamily: "'Outfit', sans-serif" }}>
                         Genfess
                     </h1>
-                    <p className="mt-6 text-lg text-secondary-text dark:text-dark-secondary-text animate-fade-in" style={{ animationDelay: '0.2s' }}>
+                    <p className="mt-4 text-lg text-white/80 animate-fade-in" style={{ animationDelay: '0.2s' }}>
                         {t.splashTagline}
                     </p>
-                    <div className="mt-10 w-32 h-1 bg-gray-200 dark:bg-gray-800 rounded-full overflow-hidden animate-fade-in" style={{ animationDelay: '0.4s' }}>
-                        <div className="h-full bg-accent-primary animate-slide-in-right" style={{ animationDuration: '1s' }}></div>
+                    <div className="mt-10 w-32 h-1 bg-white/10 rounded-full overflow-hidden animate-fade-in" style={{ animationDelay: '0.4s' }}>
+                        <div className="h-full bg-white animate-slide-in-right" style={{ animationDuration: '1s' }}></div>
                     </div>
                 </div>
             </div>
@@ -449,7 +453,7 @@ const AppContent: React.FC = () => {
 
             <Suspense fallback={null}>
                 {commentingPost && (
-                    <CommentView post={commentingPost} onBack={handleCloseComments} />
+                    <CommentView post={commentingPost} currentUser={user} onBack={handleCloseComments} />
                 )}
                 {reportingPost && (
                     <ReportModal post={reportingPost} onClose={() => handleCloseReport()} onDeleteBroadcast={(id) => setDeletedPostId(id)} />

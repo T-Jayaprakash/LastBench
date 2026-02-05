@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Script to set up iOS app icon using macOS sips command
-SOURCE_IMAGE="/Users/jayaprakash/Downloads/lastbench---anonymous-college-gossip-2/assets/lastbench_icon.png"
+SOURCE_IMAGE="/Users/jayaprakash/.gemini/antigravity/scratch/lastbench/assets/Genfess.png"
 IOS_ICON_DIR="ios/App/App/Assets.xcassets/AppIcon.appiconset"
 
 if [ ! -f "$SOURCE_IMAGE" ]; then

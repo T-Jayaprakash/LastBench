@@ -1,5 +1,5 @@
 import React, { useRef, useCallback } from 'react';
-import { useFeed } from '../hooks/useFeed';
+import { useFeed } from '../src/hooks/useFeed';
 import PostCard from './PostCard';
 import { User, Post } from '../types';
 
@@ -8,11 +8,46 @@ interface FeedProps {
     onCommentClick: (post: Post) => void;
     onOptionsClick: (post: Post) => void;
     onViewImages: (images: string[], index: number) => void;
+    newPost?: Post | null;
+    deletedPostId?: string | null;
+    updatedPost?: Post | null;
 }
 
-const Feed: React.FC<FeedProps> = ({ user, onCommentClick, onOptionsClick, onViewImages }) => {
-    const { posts, loading, hasMore, loadMore, refresh, refreshing } = useFeed(user?.college);
+const Feed: React.FC<FeedProps> = ({
+    user,
+    onCommentClick,
+    onOptionsClick,
+    onViewImages,
+    newPost,
+    deletedPostId,
+    updatedPost
+}) => {
+    const { posts, setPosts, loading, hasMore, loadMore, refresh, refreshing } = useFeed(user?.college, user?.userId);
     const observer = useRef<IntersectionObserver | null>(null);
+
+    // Handle new post from App (e.g. created via CreatePostView)
+    React.useEffect(() => {
+        if (newPost) {
+            setPosts(prev => {
+                if (prev.find(p => p.id === newPost.id)) return prev;
+                return [newPost, ...prev];
+            });
+        }
+    }, [newPost, setPosts]);
+
+    // Handle deleted post
+    React.useEffect(() => {
+        if (deletedPostId) {
+            setPosts(prev => prev.filter(p => p.id !== deletedPostId));
+        }
+    }, [deletedPostId, setPosts]);
+
+    // Handle updated post
+    React.useEffect(() => {
+        if (updatedPost) {
+            setPosts(prev => prev.map(p => p.id === updatedPost.id ? { ...p, ...updatedPost } : p));
+        }
+    }, [updatedPost, setPosts]);
 
     // Infinite Scroll Intersection Observer
     const lastPostRef = useCallback((node: HTMLDivElement) => {
@@ -27,9 +62,7 @@ const Feed: React.FC<FeedProps> = ({ user, onCommentClick, onOptionsClick, onVie
     }, [loading, hasMore, loadMore]);
 
     return (
-        <div className="flex flex-col w-full">
-            {/* Pull to refresh visualization would need to happen in parent or here */}
-
+        <div className="flex flex-col w-full pb-20">
             {posts.map((post, index) => (
                 <div key={post.id} ref={index === posts.length - 1 ? lastPostRef : null}>
                     <PostCard
@@ -56,8 +89,9 @@ const Feed: React.FC<FeedProps> = ({ user, onCommentClick, onOptionsClick, onVie
             )}
 
             {!loading && posts.length === 0 && (
-                <div className="flex flex-col items-center justify-center p-10 text-gray-500">
-                    <p>No posts yet.</p>
+                <div className="flex flex-col items-center justify-center p-10 text-gray-500 mt-10">
+                    <p>No posts yet in {user?.college}</p>
+                    <p className="text-sm mt-2">Be the first to confess!</p>
                 </div>
             )}
         </div>
