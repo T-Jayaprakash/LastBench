@@ -1,28 +1,43 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { User } from '../types/index';
-import { t } from '../constants/locales';
 import { COLLEGES, DEPARTMENTS, AVATAR_COLORS } from '../constants/config';
-import { ArrowPathIcon, CheckIcon } from '../components/Icons';
+import { ArrowPathIcon, ArrowLeftIcon, CheckIcon } from '../components/Icons';
 import * as userService from '../services/userService';
+import { uploadAvatar } from '../services/userService';
 import * as emailVerificationService from '../services/emailVerificationService';
 import { auth } from '../services/firebase';
 
 interface OnboardingViewProps {
     user: User;
-    onComplete: (updatedData: { displayName: string, college: string, department: string, avatarColor: string }) => void;
+    onComplete: (updatedData: { displayName: string, college: string, department: string, avatarColor: string, avatarUrl?: string }) => void;
 }
 
+const MagnifyingGlassIcon = ({ className }: { className?: string }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className={className}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+    </svg>
+);
+
 const OnboardingView: React.FC<OnboardingViewProps> = ({ user, onComplete }) => {
+    // Form State
     const [displayName, setDisplayName] = useState(user.displayName);
-    const [avatarColor, setAvatarColor] = useState(user.avatarColor);
+    const [avatarColor, setAvatarColor] = useState(user.avatarColor || '#262626');
+    const [avatarUrl, setAvatarUrl] = useState<string | undefined>(user.avatarUrl);
+    const [isUploading, setIsUploading] = useState(false);
+
     const [college, setCollege] = useState('');
     const [department, setDepartment] = useState('');
-    const [isOtherCollege, setIsOtherCollege] = useState(false);
-    const [customCollege, setCustomCollege] = useState('');
     const [isSaving, setIsSaving] = useState(false);
-    const [errors, setErrors] = useState<{ [key: string]: string | null }>({});
+
+    // Data State
     const [availableColleges, setAvailableColleges] = useState<string[]>(COLLEGES);
+
+    // Selector State
+    const [selectorMode, setSelectorMode] = useState<'COLLEGE' | 'DEPT' | null>(null);
+    const [searchQuery, setSearchQuery] = useState('');
+
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         const getUserEmail = async () => {
@@ -30,9 +45,7 @@ const OnboardingView: React.FC<OnboardingViewProps> = ({ user, onComplete }) => 
                 const currentUser = auth.currentUser;
                 if (currentUser?.email) {
                     const detectedCollege = emailVerificationService.getCollegeFromEmail(currentUser.email);
-                    if (detectedCollege) {
-                        setCollege(detectedCollege);
-                    }
+                    if (detectedCollege) setCollege(detectedCollege);
                 }
             } catch (e) {
                 console.error('Could not auto-detect college:', e);
@@ -54,206 +67,219 @@ const OnboardingView: React.FC<OnboardingViewProps> = ({ user, onComplete }) => 
         loadColleges();
     }, []);
 
-    useEffect(() => {
-        const newErrors: { [key: string]: string | null } = {};
-
-        if (!displayName.trim()) {
-            newErrors.displayName = "Display name cannot be empty.";
-        } else if (displayName.trim().length < 3) {
-            newErrors.displayName = "Must be at least 3 characters.";
-        }
-
-        if (isOtherCollege) {
-            if (!customCollege.trim()) {
-                newErrors.college = "Please enter your college name.";
-            }
-        } else {
-            if (!college) {
-                newErrors.college = "Please select a college.";
-            }
-        }
-
-        if (!department) {
-            newErrors.department = "Please select a department.";
-        }
-
-        setErrors(newErrors);
-    }, [displayName, college, customCollege, isOtherCollege, department]);
+    // Filter Logic
+    const filteredItems = useMemo(() => {
+        const query = searchQuery.toLowerCase();
+        const list = selectorMode === 'COLLEGE' ? availableColleges : DEPARTMENTS;
+        return list.filter(item => item.toLowerCase().includes(query));
+    }, [selectorMode, searchQuery, availableColleges]);
 
     const handleAvatarClick = () => {
-        const currentIndex = AVATAR_COLORS.indexOf(avatarColor);
-        const nextIndex = (currentIndex + 1) % AVATAR_COLORS.length;
-        setAvatarColor(AVATAR_COLORS[nextIndex]);
+        fileInputRef.current?.click();
+    };
+
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        if (file.size > 5 * 1024 * 1024) {
+            alert('Image must be less than 5MB');
+            return;
+        }
+
+        setIsUploading(true);
+        try {
+            const url = await uploadAvatar(file);
+            if (url) {
+                setAvatarUrl(url);
+            }
+        } catch (error) {
+            console.error('Avatar upload failed:', error);
+            alert('Failed to upload image.');
+        } finally {
+            setIsUploading(false);
+        }
+    };
+
+    const handleSelect = (item: string) => {
+        if (selectorMode === 'COLLEGE') setCollege(item);
+        if (selectorMode === 'DEPT') setDepartment(item);
+        setSelectorMode(null);
+        setSearchQuery('');
     };
 
     const handleSubmit = async () => {
-        const finalCollege = isOtherCollege ? customCollege.trim() : college;
-        if (!displayName.trim() || !finalCollege || !department || isSaving || Object.values(errors).some(e => e)) return;
+        if (!displayName.trim() || !college || !department || isSaving) return;
 
         setIsSaving(true);
         onComplete({
             displayName: displayName.trim(),
             avatarColor,
-            college: finalCollege,
+            avatarUrl,
+            college,
             department,
         });
     };
 
-    const isSubmitDisabled = !displayName.trim() || (isOtherCollege ? !customCollege.trim() : !college) || !department || isSaving || Object.values(errors).some(e => e);
+    const getLocationSubtitle = (name: string) => {
+        const n = name.toLowerCase();
+        if (n.includes('trichy')) return 'Tiruchirappalli, India';
+        if (n.includes('madras') || n.includes('anna') || n.includes('ceg')) return 'Chennai, India';
+        if (n.includes('vellore')) return 'Vellore, India';
+        if (n.includes('coimbatore') || n.includes('psg')) return 'Coimbatore, India';
+        if (n.includes('srm')) return 'Kattankulathur, India';
+        return 'Campus';
+    };
+
+    const isFormValid = displayName.trim().length >= 3 && college && department;
+
+    // Full Screen Selector Overlay
+    if (selectorMode) {
+        return (
+            <div className="fixed inset-0 z-50 bg-black flex flex-col animate-fade-in">
+                {/* Search Header */}
+                <div className="flex items-center px-4 py-3 border-b border-white/10 gap-3">
+                    <button
+                        onClick={() => { setSelectorMode(null); setSearchQuery(''); }}
+                        className="p-1 -ml-2 text-white/90 hover:opacity-70"
+                    >
+                        <ArrowLeftIcon className="w-6 h-6 stroke-[2px]" />
+                    </button>
+                    <div className="flex-1 relative">
+                        <input
+                            autoFocus
+                            type="text"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            placeholder={selectorMode === 'COLLEGE' ? "Search for your college" : "Search department"}
+                            className="w-full bg-transparent text-white text-[16px] placeholder:text-gray-500 font-normal outline-none border-none p-0"
+                        />
+                    </div>
+                </div>
+
+                {/* Results List */}
+                <div className="flex-1 overflow-y-auto no-scrollbar">
+                    {filteredItems.length === 0 ? (
+                        <div className="px-5 py-4 text-gray-500 text-sm">No results found for "{searchQuery}"</div>
+                    ) : (
+                        filteredItems.map((item) => (
+                            <button
+                                key={item}
+                                onClick={() => handleSelect(item)}
+                                className="w-full text-left px-5 py-3.5 border-b border-white/5 active:bg-white/5 flex items-center justify-between group transition-colors"
+                            >
+                                <div>
+                                    <div className="text-white text-[15px] font-medium leading-snug">{item}</div>
+                                    <div className="text-gray-500 text-[12px] leading-snug">
+                                        {selectorMode === 'COLLEGE' ? getLocationSubtitle(item) : 'Academic Department'}
+                                    </div>
+                                </div>
+                                {(selectorMode === 'COLLEGE' && college === item) || (selectorMode === 'DEPT' && department === item) ? (
+                                    <CheckIcon className="w-5 h-5 text-blue-500" />
+                                ) : null}
+                            </button>
+                        ))
+                    )}
+
+                    {/* Custom option */}
+                    {searchQuery && filteredItems.length === 0 && selectorMode === 'COLLEGE' && (
+                        <button
+                            onClick={() => handleSelect(searchQuery)}
+                            className="w-full text-left px-5 py-4 text-blue-400 text-sm font-medium"
+                        >
+                            Can't find it? Tap to use "{searchQuery}"
+                        </button>
+                    )}
+                </div>
+            </div>
+        );
+    }
 
     return (
-        <div className="flex flex-col items-center justify-center min-h-screen bg-dark-background relative overflow-hidden">
-            {/* Animated mesh gradient background */}
-            <div className="absolute inset-0">
-                <div
-                    className="absolute inset-0 opacity-30"
-                    style={{
-                        background: 'radial-gradient(circle at 20% 20%, rgba(0, 212, 255, 0.15) 0%, transparent 40%), radial-gradient(circle at 80% 80%, rgba(124, 58, 237, 0.15) 0%, transparent 40%), radial-gradient(circle at 50% 50%, rgba(244, 63, 94, 0.1) 0%, transparent 50%)',
-                    }}
-                />
-            </div>
+        <div className="flex flex-col items-center min-h-screen bg-black text-white px-8 pt-16">
+            <div className="w-full max-w-[350px] flex flex-col items-center">
 
-            <div className="relative z-10 w-full max-w-sm px-6 animate-fade-in-up">
-                {/* Logo */}
-                <h1
-                    className="text-4xl font-bold text-center mb-2 tracking-tight"
-                    style={{
-                        fontFamily: "'Outfit', sans-serif",
-                        background: 'linear-gradient(135deg, #00d4ff 0%, #7c3aed 50%, #f43f5e 100%)',
-                        WebkitBackgroundClip: 'text',
-                        WebkitTextFillColor: 'transparent',
-                        backgroundClip: 'text',
-                    }}
-                >
-                    Welcome!
-                </h1>
-                <p className="text-center text-dark-secondary-text mb-8">Let's set up your profile</p>
-
-                <div className="flex flex-col items-center gap-8">
-                    {/* Avatar with gradient ring */}
-                    <div className="flex flex-col items-center gap-3 group">
-                        <div className="relative">
-                            {/* Gradient glow */}
-                            <div className="absolute -inset-1 rounded-full bg-gradient-to-r from-accent-cyan via-accent-purple to-accent-pink opacity-70 blur-md group-hover:opacity-100 transition-opacity" />
-
-                            <div
-                                className="relative w-28 h-28 rounded-full flex items-center justify-center text-5xl font-bold text-white shadow-2xl transition-all duration-300 cursor-pointer overflow-hidden"
-                                style={{ backgroundColor: avatarColor }}
-                                onClick={handleAvatarClick}
-                            >
-                                <span className="relative z-10">{(displayName || 'A').charAt(0).toUpperCase()}</span>
-                                <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                    <span className="text-xs font-medium uppercase tracking-wider text-white">Tap</span>
-                                </div>
-                            </div>
-                        </div>
-                        <span className="text-xs font-medium text-dark-secondary-text uppercase tracking-wider">Tap to change color</span>
-                    </div>
-
-                    {/* Form Fields */}
-                    <div className="w-full flex flex-col gap-5">
-                        {/* Username */}
-                        <div className="space-y-2">
-                            <label htmlFor="username" className="text-xs font-semibold uppercase tracking-wider text-dark-secondary-text ml-1">Username</label>
-                            <input
-                                id="username"
-                                type="text"
-                                value={displayName}
-                                onChange={(e) => setDisplayName(e.target.value)}
-                                placeholder="#Student123"
-                                className={`w-full bg-dark-surface border rounded-xl py-3.5 px-4 text-dark-primary-text placeholder:text-dark-secondary-text/50 focus:outline-none focus:ring-2 transition-all duration-200 ${errors.displayName
-                                    ? 'border-accent-pink focus:ring-accent-pink/50'
-                                    : 'border-white/10 focus:ring-accent-cyan/50 focus:border-accent-cyan'
-                                    }`}
-                            />
-                            {errors.displayName && <p className="text-accent-pink text-xs ml-1 font-medium">{errors.displayName}</p>}
-                        </div>
-
-                        {/* College */}
-                        <div className="space-y-2">
-                            <label htmlFor="college" className="text-xs font-semibold uppercase tracking-wider text-dark-secondary-text ml-1">College</label>
-                            <div className="relative">
-                                <select
-                                    id="college"
-                                    value={college}
-                                    onChange={(e) => {
-                                        const val = e.target.value;
-                                        setCollege(val);
-                                        setIsOtherCollege(val === 'Other');
-                                    }}
-                                    className={`w-full bg-dark-surface border rounded-xl py-3.5 px-4 text-dark-primary-text appearance-none focus:outline-none focus:ring-2 transition-all duration-200 ${errors.college && !isOtherCollege
-                                        ? 'border-accent-pink focus:ring-accent-pink/50'
-                                        : 'border-white/10 focus:ring-accent-cyan/50 focus:border-accent-cyan'
-                                        }`}
-                                >
-                                    <option value="" disabled>Select your college</option>
-                                    {availableColleges.map(c => <option key={c} value={c}>{c}</option>)}
-                                    <option value="Other">Other...</option>
-                                </select>
-                                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
-                                    <svg className="w-5 h-5 text-dark-secondary-text" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                    </svg>
-                                </div>
-                            </div>
-
-                            {isOtherCollege && (
-                                <input
-                                    type="text"
-                                    value={customCollege}
-                                    onChange={e => setCustomCollege(e.target.value)}
-                                    placeholder="Enter college name"
-                                    className="w-full bg-dark-surface border border-white/10 rounded-xl py-3.5 px-4 text-dark-primary-text placeholder:text-dark-secondary-text/50 focus:outline-none focus:ring-2 focus:ring-accent-cyan/50 focus:border-accent-cyan animate-fade-in"
-                                    autoFocus
-                                />
-                            )}
-                            {errors.college && <p className="text-accent-pink text-xs ml-1 font-medium">{errors.college}</p>}
-                        </div>
-
-                        {/* Department */}
-                        <div className="space-y-2">
-                            <label htmlFor="department" className="text-xs font-semibold uppercase tracking-wider text-dark-secondary-text ml-1">Department</label>
-                            <div className="relative">
-                                <select
-                                    id="department"
-                                    value={department}
-                                    onChange={(e) => setDepartment(e.target.value)}
-                                    className={`w-full bg-dark-surface border rounded-xl py-3.5 px-4 text-dark-primary-text appearance-none focus:outline-none focus:ring-2 transition-all duration-200 ${errors.department
-                                        ? 'border-accent-pink focus:ring-accent-pink/50'
-                                        : 'border-white/10 focus:ring-accent-cyan/50 focus:border-accent-cyan'
-                                        }`}
-                                >
-                                    <option value="" disabled>Select your department</option>
-                                    {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
-                                </select>
-                                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
-                                    <svg className="w-5 h-5 text-dark-secondary-text" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                    </svg>
-                                </div>
-                            </div>
-                            {errors.department && <p className="text-accent-pink text-xs ml-1 font-medium">{errors.department}</p>}
-                        </div>
-                    </div>
-
-                    {/* Submit Button */}
-                    <button
-                        onClick={handleSubmit}
-                        disabled={isSubmitDisabled}
-                        className="w-full gradient-premium text-white font-semibold py-4 px-6 rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-accent-cyan/20 hover:shadow-xl hover:shadow-accent-cyan/30 active:scale-[0.98] mt-2 flex items-center justify-center gap-2"
+                {/* Avatar Parity Section */}
+                <div className="flex flex-col items-center mb-10">
+                    <div
+                        className="relative w-[110px] h-[110px] rounded-full flex items-center justify-center bg-[#262626] border border-black overflow-hidden ring-1 ring-white/10"
+                        onClick={handleAvatarClick}
                     >
-                        {isSaving ? (
-                            <ArrowPathIcon className="w-5 h-5 animate-spin" />
+                        {isUploading ? (
+                            <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        ) : avatarUrl ? (
+                            <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
                         ) : (
-                            <>
-                                <span>Start Exploring</span>
-                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                                </svg>
-                            </>
+                            // Neutral placeholder
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="#555" className="w-16 h-16">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
+                            </svg>
                         )}
+                    </div>
+
+                    <button
+                        onClick={handleAvatarClick}
+                        className="mt-3 text-[#0095F6] text-[13px] font-bold active:opacity-60 transition-opacity"
+                    >
+                        {avatarUrl ? 'Change profile photo' : 'Add profile photo'}
+                    </button>
+
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={handleFileChange}
+                        className="hidden"
+                    />
+                </div>
+
+                {/* Form Fields */}
+                <div className="w-full space-y-4">
+                    <div className="w-full bg-[#121212] border border-[#262626] rounded-[3px] focus-within:border-gray-500 transition-colors">
+                        <input
+                            type="text"
+                            value={displayName}
+                            onChange={(e) => setDisplayName(e.target.value)}
+                            placeholder="Username"
+                            className="w-full bg-transparent text-sm py-2.5 px-3 text-white placeholder:text-gray-500 focus:outline-none"
+                        />
+                    </div>
+
+                    <button
+                        onClick={() => setSelectorMode('COLLEGE')}
+                        className="w-full bg-[#121212] border border-[#262626] rounded-[3px] focus-within:border-gray-500 transition-colors text-left py-2.5 px-3 flex items-center justify-between group active:bg-[#1a1a1a]"
+                    >
+                        <span className={`text-sm ${college ? 'text-white' : 'text-gray-500'}`}>
+                            {college || "Select College"}
+                        </span>
+                        <span className="text-gray-500 text-xs group-hover:text-gray-400">▼</span>
+                    </button>
+
+                    <button
+                        onClick={() => setSelectorMode('DEPT')}
+                        className="w-full bg-[#121212] border border-[#262626] rounded-[3px] focus-within:border-gray-500 transition-colors text-left py-2.5 px-3 flex items-center justify-between group active:bg-[#1a1a1a]"
+                    >
+                        <span className={`text-sm ${department ? 'text-white' : 'text-gray-500'}`}>
+                            {department || "Select Department"}
+                        </span>
+                        <span className="text-gray-500 text-xs group-hover:text-gray-400">▼</span>
                     </button>
                 </div>
+
+                <button
+                    onClick={handleSubmit}
+                    disabled={!isFormValid || isSaving}
+                    className="w-full mt-6 bg-[#0095F6] text-white text-sm font-semibold py-2.5 rounded-[4px] disabled:opacity-30 disabled:cursor-not-allowed hover:bg-[#1877F2] transition-colors flex justify-center items-center"
+                >
+                    {isSaving ? (
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    ) : (
+                        "Complete Setup"
+                    )}
+                </button>
+
+                <p className="text-[#A8A8A8] text-xs text-center mt-6 leading-relaxed">
+                    By continuing, you agree to keep this community helpful and anonymous.
+                </p>
             </div>
         </div>
     );

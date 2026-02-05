@@ -201,7 +201,7 @@ const AppContent: React.FC = () => {
         setAuthView('login');
     };
 
-    const handleOnboardingComplete = async (updatedUserData: { displayName: string, college: string, department: string, avatarColor: string }) => {
+    const handleOnboardingComplete = async (updatedUserData: { displayName: string, college: string, department: string, avatarColor: string, avatarUrl?: string }) => {
         if (!user) return;
         const fullyUpdatedUser: User = {
             ...user,

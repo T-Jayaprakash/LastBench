@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Post, Comment } from '../types/index';
 import { t } from '../constants/locales';
 import * as api from '../services/api';
-import { XMarkIcon, HeartIcon } from '../components/Icons';
+import { ArrowLeftIcon, HeartIcon } from '../components/Icons';
 import { useFirestoreCollection } from '../src/hooks/useFirebaseRealtime';
 import { where, orderBy } from 'firebase/firestore';
 
@@ -34,9 +34,10 @@ interface CommentItemProps {
     allComments: Comment[];
     onReply: (comment: Comment) => void;
     newlyAddedId: string | null;
+    isReply?: boolean;
 }
 
-const CommentItem: React.FC<CommentItemProps> = ({ comment, replies, allComments, onReply, newlyAddedId }) => {
+const CommentItem: React.FC<CommentItemProps> = ({ comment, replies, allComments, onReply, newlyAddedId, isReply = false }) => {
     const [avatarError, setAvatarError] = useState(false);
     const [isLiked, setIsLiked] = useState(comment.isLiked || false);
     const [likesCount, setLikesCount] = useState(comment.likesCount);
@@ -48,10 +49,8 @@ const CommentItem: React.FC<CommentItemProps> = ({ comment, replies, allComments
 
         try {
             const newCount = await api.toggleCommentLike(comment.id);
-            // Only update count if returned, but keep optimistic liked state unless error
             if (newCount !== undefined) setLikesCount(newCount);
         } catch (e) {
-            // Revert
             setIsLiked(!newState);
             setLikesCount(prev => newState ? prev - 1 : prev + 1);
         }
@@ -60,11 +59,12 @@ const CommentItem: React.FC<CommentItemProps> = ({ comment, replies, allComments
     const isNewlyAdded = comment.id === newlyAddedId;
 
     return (
-        <div className={`flex flex-col ${isNewlyAdded ? 'animate-slide-in-bottom-fade' : ''}`}>
-            <div className="flex items-start space-x-3 py-2">
+        <div className={`flex flex-col w-full ${isNewlyAdded ? 'animate-fade-in' : ''}`}>
+            {/* Comment Row */}
+            <div className={`flex gap-3 py-3 px-4 w-full ${isReply ? 'pl-4' : ''}`}>
                 {/* Avatar */}
                 <div
-                    className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs flex-shrink-0 text-white overflow-hidden bg-gray-300"
+                    className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs flex-shrink-0 text-white overflow-hidden ring-1 ring-white/10"
                     style={{ backgroundColor: (comment.authorAvatarUrl && !avatarError) ? 'transparent' : comment.authorAvatarColor }}
                 >
                     {comment.authorAvatarUrl && !avatarError ? (
@@ -75,23 +75,28 @@ const CommentItem: React.FC<CommentItemProps> = ({ comment, replies, allComments
                             onError={() => setAvatarError(true)}
                         />
                     ) : (
-                        <span className="opacity-50">{(comment.authorAnonId || 'A').charAt(0)}</span>
+                        <span className="opacity-70">{(comment.authorAnonId || 'A').charAt(0)}</span>
                     )}
                 </div>
 
-                {/* Content */}
-                <div className="flex-grow text-sm">
+                {/* Content Block */}
+                <div className="flex-1 min-w-0">
                     <div className="flex flex-col">
-                        <p className="text-primary-text dark:text-dark-primary-text leading-snug">
-                            <span className="font-bold mr-2">{comment.displayName || comment.authorAnonId}</span>
-                            {comment.text}
-                        </p>
-                        <div className="flex items-center gap-3 mt-1 text-xs text-secondary-text dark:text-dark-secondary-text">
+                        {/* Username & Text Inline-ish */}
+                        <div className="text-[14px] leading-relaxed text-white">
+                            <span className="font-semibold mr-2 text-[13px]">{comment.displayName || comment.authorAnonId}</span>
+                            <span className="text-gray-200 font-normal">{comment.text}</span>
+                        </div>
+
+                        {/* Meta Row: Time · Reply · Likes */}
+                        <div className="flex items-center gap-4 mt-1.5 text-[12px] text-gray-500 font-medium">
                             <span>{timeAgo(comment.createdAt)}</span>
-                            {likesCount > 0 && <span>{likesCount} likes</span>}
+                            {likesCount > 0 && (
+                                <span>{likesCount} like{likesCount !== 1 ? 's' : ''}</span>
+                            )}
                             <button
                                 onClick={() => onReply(comment)}
-                                className="font-semibold text-secondary-text dark:text-dark-secondary-text hover:text-primary-text dark:hover:text-dark-primary-text"
+                                className="text-gray-500 hover:text-gray-300 transition-colors"
                             >
                                 Reply
                             </button>
@@ -99,19 +104,23 @@ const CommentItem: React.FC<CommentItemProps> = ({ comment, replies, allComments
                     </div>
                 </div>
 
-                {/* Like Button */}
-                <div className="flex flex-col items-center pt-1">
-                    <button onClick={handleLike} className="p-1 active:scale-75 transition-transform">
+                {/* Like Button (Right Side) */}
+                <div className="pt-1">
+                    <button
+                        onClick={handleLike}
+                        className="p-1 -mr-1 active:scale-90 transition-transform"
+                    >
                         <HeartIcon
-                            className={`w-3.5 h-3.5 ${isLiked ? 'fill-red-500 text-red-500' : 'text-secondary-text dark:text-dark-secondary-text'}`}
+                            className={`w-3.5 h-3.5 ${isLiked ? 'fill-red-500 text-red-500' : 'text-gray-500'}`}
                         />
                     </button>
                 </div>
             </div>
 
-            {/* Render Replies recursively */}
+            {/* Nested Replies */}
             {replies.length > 0 && (
-                <div className="pl-11 space-y-2">
+                <div className="pl-11">
+                    {/* Visual Thread Guide (Optional, but Instagram doesn't use it, Reddit does. Let's keep it clean for now) */}
                     {replies.map(reply => {
                         const nestedReplies = allComments.filter(c => c.parentId === reply.id);
                         return (
@@ -122,6 +131,7 @@ const CommentItem: React.FC<CommentItemProps> = ({ comment, replies, allComments
                                 allComments={allComments}
                                 onReply={onReply}
                                 newlyAddedId={newlyAddedId}
+                                isReply={true}
                             />
                         );
                     })}
@@ -153,7 +163,6 @@ const CommentView: React.FC<CommentViewProps> = ({ post, onBack }) => {
         fetchComments();
     }, [post.id]);
 
-    // Realtime subscription for new comments using Firebase
     useFirestoreCollection({
         collectionName: 'comments',
         constraints: [
@@ -164,7 +173,6 @@ const CommentView: React.FC<CommentViewProps> = ({ post, onBack }) => {
             changes.forEach(change => {
                 if (change.type === 'added') {
                     const newCommentRaw = change.doc.data;
-                    // Transform raw comment data to Comment type
                     const newCommentData: Comment = {
                         id: change.doc.id,
                         postId: newCommentRaw.post_id,
@@ -180,28 +188,19 @@ const CommentView: React.FC<CommentViewProps> = ({ post, onBack }) => {
                     };
 
                     setComments(prev => {
-                        // Avoid duplicates
-                        if (prev.some(c => c.id === newCommentData.id)) {
-                            return prev;
-                        }
-                        // Insert at correct position based on creation time
-                        const updated = [...prev, newCommentData].sort((a, b) =>
+                        if (prev.some(c => c.id === newCommentData.id)) return prev;
+                        return [...prev, newCommentData].sort((a, b) =>
                             a.createdAt.getTime() - b.createdAt.getTime()
                         );
-                        return updated;
                     });
 
-                    // Vibrate on new comment
-                    if ('vibrate' in navigator) {
-                        navigator.vibrate(30);
-                    }
+                    if ('vibrate' in navigator) navigator.vibrate(30);
                 }
             });
         },
         debounceMilliseconds: 100
     });
 
-    // Scroll to bottom on new TOP LEVEL comment
     useEffect(() => {
         if (newlyAddedCommentId && !replyingTo) {
             commentsListRef.current?.scrollTo({ top: commentsListRef.current.scrollHeight, behavior: 'smooth' });
@@ -213,17 +212,13 @@ const CommentView: React.FC<CommentViewProps> = ({ post, onBack }) => {
         setIsPosting(true);
         try {
             const parentId = replyingTo ? replyingTo.id : undefined;
-            // Strip @username from text for the actual comment payload if desired, 
-            // but typically keeping it is fine for context.
-
             const addedComment = await api.addComment(post.id, newComment, parentId);
-
             setComments(prev => [...prev, addedComment]);
             setNewlyAddedCommentId(addedComment.id);
             setNewComment('');
-            setReplyingTo(null); // Reset reply state
+            setReplyingTo(null);
         } catch (error) {
-            console.error("Failed to post comment:", JSON.stringify(error, null, 2));
+            console.error("Failed to post comment:", error);
         } finally {
             setIsPosting(false);
         }
@@ -235,63 +230,71 @@ const CommentView: React.FC<CommentViewProps> = ({ post, onBack }) => {
         inputRef.current?.focus();
     };
 
-    // Group comments into trees
     const rootComments = comments.filter(c => !c.parentId);
 
     return (
         <div
-            className="fixed inset-0 bg-black/60 z-20 flex items-end animate-fade-in"
-            onClick={onBack}
+            className="fixed inset-0 bg-black z-50 flex flex-col animate-slide-in-right"
             aria-modal="true"
             role="dialog"
         >
-            <div
-                className="bg-card-bg dark:bg-dark-card-bg w-full max-h-[90vh] h-[90vh] rounded-t-2xl flex flex-col animate-slide-in-up shadow-2xl shadow-black/50"
-                onClick={e => e.stopPropagation()}
-            >
-                {/* Header */}
-                <header className="flex-shrink-0 text-center py-3 border-b border-border-color dark:border-dark-border-color relative">
-                    <div className="w-10 h-1.5 bg-gray-300 dark:bg-gray-600 rounded-full mx-auto mb-2" aria-hidden="true"></div>
-                    <h2 className="text-lg font-bold">{t.comments}</h2>
-                    <button onClick={onBack} className="absolute top-1/2 -translate-y-1/2 right-4 text-secondary-text dark:text-dark-secondary-text hover:text-primary-text dark:hover:text-dark-primary-text" aria-label="Close comments">
-                        <XMarkIcon className="w-6 h-6" />
-                    </button>
-                </header>
+            {/* Minimal Header */}
+            <header className="flex-shrink-0 flex items-center h-14 px-4 border-b border-white/10 bg-black sticky top-0 z-30">
+                <button
+                    onClick={onBack}
+                    className="p-2 -ml-2 text-white hover:opacity-70 transition-opacity"
+                    aria-label="Back"
+                >
+                    <ArrowLeftIcon className="w-6 h-6 stroke-[2px]" />
+                </button>
+                {/* Empty Center */}
+                <div className="flex-1"></div>
+                {/* Empty Right */}
+                <div className="w-8"></div>
+            </header>
 
-                {/* Content */}
-                <div className="flex-grow overflow-y-auto px-4" ref={commentsListRef}>
-                    {/* Original Post Caption */}
-                    <div className="flex items-start space-x-3 py-4 border-b border-border-color dark:border-dark-border-color">
-                        <div
-                            className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 text-white overflow-hidden bg-gray-300"
-                            style={{ backgroundColor: (post.authorAvatarUrl && !postAvatarError) ? 'transparent' : post.authorAvatarColor }}
-                        >
-                            {post.authorAvatarUrl && !postAvatarError ? (
-                                <img
-                                    src={post.authorAvatarUrl}
-                                    alt={post.displayName}
-                                    className="w-full h-full object-cover"
-                                    onError={() => setPostAvatarError(true)}
-                                />
-                            ) : (
-                                (post.displayName || 'A').charAt(0).toUpperCase()
-                            )}
-                        </div>
-                        <div className="text-sm">
-                            <p className="text-primary-text dark:text-dark-primary-text leading-snug">
-                                <span className="font-bold mr-2">{post.displayName}</span>
-                                {post.text}
-                            </p>
-                            <p className="text-xs text-secondary-text dark:text-dark-secondary-text mt-1.5">{timeAgo(post.createdAt)}</p>
-                        </div>
+            {/* Content Scroller */}
+            <div className="flex-grow overflow-y-auto bg-black pb-20 no-scrollbar" ref={commentsListRef}>
+                {/* Original Post Context */}
+                <div className="flex items-start gap-3 py-4 px-4 border-b border-white/5">
+                    <div
+                        className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs flex-shrink-0 text-white overflow-hidden ring-1 ring-white/10"
+                        style={{ backgroundColor: (post.authorAvatarUrl && !postAvatarError) ? 'transparent' : post.authorAvatarColor }}
+                    >
+                        {post.authorAvatarUrl && !postAvatarError ? (
+                            <img
+                                src={post.authorAvatarUrl}
+                                alt={post.displayName}
+                                className="w-full h-full object-cover"
+                                onError={() => setPostAvatarError(true)}
+                            />
+                        ) : (
+                            (post.displayName || 'A').charAt(0).toUpperCase()
+                        )}
                     </div>
+                    <div className="flex-1 min-w-0">
+                        <div className="text-[14px] leading-relaxed text-white">
+                            <span className="font-semibold mr-2 text-[13px]">{post.displayName}</span>
+                            <span className="text-gray-200 font-normal">{post.text}</span>
+                        </div>
+                        <p className="text-[11px] text-gray-500 mt-1.5 font-medium">{timeAgo(post.createdAt)}</p>
+                    </div>
+                </div>
 
-                    {/* Comments List */}
-                    {loading ? (
-                        <p className="text-secondary-text dark:text-dark-secondary-text text-center pt-10">Loading comments...</p>
-                    ) : (
-                        <div className="pt-2 pb-4 space-y-2">
-                            {rootComments.map(comment => {
+                {/* Comments List */}
+                {loading ? (
+                    <div className="flex justify-center pt-10">
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white/30"></div>
+                    </div>
+                ) : (
+                    <div className="divide-y divide-transparent">
+                        {rootComments.length === 0 ? (
+                            <div className="py-12 text-center">
+                                <p className="text-gray-600 text-sm">No comments yet.</p>
+                                <p className="text-gray-700 text-xs mt-1">Start the conversation.</p>
+                            </div>
+                        ) : (
+                            rootComments.map(comment => {
                                 const replies = comments.filter(c => c.parentId === comment.id);
                                 return (
                                     <CommentItem
@@ -303,39 +306,47 @@ const CommentView: React.FC<CommentViewProps> = ({ post, onBack }) => {
                                         newlyAddedId={newlyAddedCommentId}
                                     />
                                 );
-                            })}
-                        </div>
-                    )}
-                </div>
-
-                {/* Comment Input Footer */}
-                <div className="flex-shrink-0 bg-card-bg dark:bg-dark-card-bg border-t border-border-color dark:border-dark-border-color">
-                    {replyingTo && (
-                        <div className="px-4 py-2 bg-gray-100 dark:bg-gray-800 flex justify-between items-center text-xs text-secondary-text dark:text-dark-secondary-text">
-                            <span>Replying to <span className="font-bold">{replyingTo.displayName || replyingTo.authorAnonId}</span></span>
-                            <button onClick={() => { setReplyingTo(null); setNewComment(''); }} className="text-primary-text dark:text-dark-primary-text font-semibold">
-                                <XMarkIcon className="w-4 h-4" />
-                            </button>
-                        </div>
-                    )}
-                    <div className="p-3">
-                        <form onSubmit={(e) => { e.preventDefault(); handlePostComment(); }} className="flex items-center space-x-3">
-                            <div className="w-8 h-8 bg-gray-500 rounded-full flex-shrink-0 opacity-20" aria-hidden="true"></div>
-                            <input
-                                ref={inputRef}
-                                type="text"
-                                value={newComment}
-                                onChange={(e) => setNewComment(e.target.value)}
-                                placeholder={replyingTo ? `Reply to ${replyingTo.displayName || replyingTo.authorAnonId}...` : t.addCommentPlaceholder}
-                                className="flex-grow bg-gray-100 dark:bg-dark-border-color border border-border-color dark:border-dark-border-color rounded-full py-2 px-4 text-sm focus:outline-none focus:ring-1 focus:ring-accent-primary"
-                                aria-label="Add a comment"
-                            />
-                            <button type="submit" disabled={!newComment.trim() || isPosting} className="text-accent-primary font-bold text-sm disabled:text-secondary-text dark:disabled:text-dark-secondary-text transition-colors">
-                                {t.postComment}
-                            </button>
-                        </form>
+                            })
+                        )}
                     </div>
-                </div>
+                )}
+            </div>
+
+            {/* Input Fixed Bottom */}
+            <div className="fixed bottom-0 left-0 right-0 bg-black border-t border-white/10 p-3 pb-safe-area-bottom">
+                {replyingTo && (
+                    <div className="px-1 pb-2 flex justify-between items-center text-xs text-gray-400">
+                        <span>Replying to <span className="font-bold text-white">{replyingTo.displayName}</span></span>
+                        <button onClick={() => { setReplyingTo(null); setNewComment(''); }} className="text-white p-1">
+                            ✕
+                        </button>
+                    </div>
+                )}
+                <form
+                    onSubmit={(e) => { e.preventDefault(); handlePostComment(); }}
+                    className="flex items-center gap-3"
+                >
+                    {/* Current User Avatar Placeholder */}
+                    <div className="w-8 h-8 bg-gray-800 rounded-full flex-shrink-0" />
+
+                    <div className="flex-grow relative">
+                        <input
+                            ref={inputRef}
+                            type="text"
+                            value={newComment}
+                            onChange={(e) => setNewComment(e.target.value)}
+                            placeholder={replyingTo ? "Write a reply..." : `Add a comment...`}
+                            className="w-full bg-[#121212] border border-white/10 rounded-full py-2.5 px-4 text-[14px] text-white placeholder:text-gray-500 focus:outline-none focus:border-white/20 transition-colors"
+                        />
+                    </div>
+                    <button
+                        type="submit"
+                        disabled={!newComment.trim() || isPosting}
+                        className="text-[#0095F6] font-semibold text-sm disabled:opacity-30 disabled:cursor-not-allowed transition-opacity px-1"
+                    >
+                        Post
+                    </button>
+                </form>
             </div>
         </div>
     );

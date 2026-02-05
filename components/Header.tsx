@@ -9,10 +9,16 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ onNotificationClick, user }) => {
     return (
-        <header className="fixed top-0 left-0 right-0 z-40 bg-black/80 backdrop-blur-md border-b border-white/5 transition-all duration-300 max-w-md mx-auto">
-            <div className="w-full px-4 h-12 flex items-center justify-end">
-                {/* Minimal Top Bar - No Branding */}
-                <div className="flex items-center gap-4">
+        <header className="fixed top-0 left-0 right-0 z-40 bg-black border-b border-white/5 transition-all duration-300">
+            <div className="w-full px-4 h-12 flex items-center justify-between">
+                {/* Left: Spacer / Brand Placeholder (Hidden) */}
+                <div className="w-8"></div>
+
+                {/* Center: Empty or maybe "For You" / "Following" later */}
+                <div className="flex-1"></div>
+
+                {/* Right: Notifications */}
+                <div className="flex items-center">
                     <NotificationBell userId={user?.userId || ''} />
                 </div>
             </div>

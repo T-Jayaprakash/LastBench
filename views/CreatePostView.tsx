@@ -135,141 +135,106 @@ const CreatePostView: React.FC<CreatePostViewProps> = ({ onPostSuccess, onCancel
 
     return (
         <div className="flex flex-col h-full bg-black animate-fade-in relative">
-            {/* Header */}
-            <div className="flex items-center justify-between p-4 border-b border-white/5">
+            {/* Header - Instagram Style */}
+            <div className="flex items-center justify-between px-4 h-12 bg-black z-20">
                 <button
                     onClick={onCancel}
-                    className="text-gray-400 hover:text-white font-medium transition-colors"
+                    className="text-white p-1 -ml-1"
                 >
-                    Cancel
+                    <XMarkIcon className="w-7 h-7 stroke-[1.5px]" />
                 </button>
 
-                <h2 className="text-lg font-semibold text-white">New Post</h2>
+                {/* Empty Center */}
+                <div className="flex-1"></div>
 
                 <button
                     onClick={handleSubmit}
                     disabled={(!text.trim() && selectedFiles.length === 0 && !isPollMode)}
-                    className="text-blue-500 font-bold disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="text-[#0095F6] font-semibold text-[15px] disabled:opacity-30 disabled:cursor-not-allowed transition-opacity hover:text-[#E0F1FF]"
                 >
                     Post
                 </button>
             </div>
 
             {/* Content Area */}
-            <div className="flex-grow p-4 overflow-y-auto">
-                {/* Text Input */}
-                <div className="relative">
+            <div className="flex-grow flex flex-col relative px-4 overflow-y-auto no-scrollbar">
+
+                {/* User Info Row (Subtle) */}
+                <div className="flex items-center gap-3 pt-2 mb-2">
+                    <div className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center overflow-hidden">
+                        {/* Avatar Image or Initial - Placeholder logic needed if user prop not available directly here, but using placeholder style */}
+                        <div className="text-[10px] font-bold text-gray-400">?</div>
+                    </div>
+                    <span className="text-gray-200 font-semibold text-[14px]">Anonymous Student</span>
+                </div>
+
+                {/* Main Text Input */}
+                <div className="relative w-full min-h-[150px]">
                     <textarea
-                        className="w-full bg-transparent text-white text-lg placeholder:text-gray-600 resize-none focus:outline-none min-h-[120px] leading-relaxed"
-                        placeholder={isPollMode ? "Ask a question..." : t.whatsOnYourMind}
+                        className="w-full h-full bg-transparent text-white text-[18px] placeholder:text-gray-500 resize-none focus:outline-none leading-relaxed"
+                        placeholder={isPollMode ? "Ask a poll question..." : "What's on your mind?"}
                         value={text}
                         onChange={(e) => setText(e.target.value.slice(0, maxChars))}
                         autoFocus
+                        style={{ minHeight: '150px' }}
                     />
-                    <div className={`text-xs text-right ${charCount > maxChars * 0.9 ? 'text-red-500' : 'text-gray-600'}`}>
-                        {charCount}/{maxChars}
-                    </div>
                 </div>
 
-                {/* Poll Creator */}
+                {/* Poll Creator (Minimal) */}
                 {isPollMode && (
-                    <div className="mt-4 flex flex-col gap-3 animate-slide-up">
+                    <div className="mt-4 flex flex-col gap-3 animate-fade-in">
                         {pollOptions.map((option, index) => (
                             <div key={index} className="flex items-center gap-2">
-                                <div className="flex-grow relative">
-                                    <input
-                                        type="text"
-                                        value={option}
-                                        onChange={(e) => handlePollOptionChange(index, e.target.value)}
-                                        placeholder={`Option ${index + 1}`}
-                                        className="w-full bg-[#1F2937] text-white p-3 rounded-lg border border-gray-700 focus:border-blue-500 focus:outline-none"
-                                    />
-                                </div>
+                                <input
+                                    type="text"
+                                    value={option}
+                                    onChange={(e) => handlePollOptionChange(index, e.target.value)}
+                                    placeholder={`Option ${index + 1}`}
+                                    className="w-full bg-[#121212] text-white p-3 rounded-xl border border-white/10 focus:border-white/20 focus:outline-none text-[15px]"
+                                />
                                 {pollOptions.length > 2 && (
-                                    <button onClick={() => removePollOption(index)} className="p-2 text-gray-500 hover:text-red-500">
+                                    <button onClick={() => removePollOption(index)} className="p-2 text-gray-500">
                                         <XMarkIcon className="w-5 h-5" />
                                     </button>
                                 )}
                             </div>
                         ))}
                         {pollOptions.length < 10 && (
-                            <button onClick={addPollOption} className="text-blue-500 text-sm font-semibold flex items-center gap-1 mt-1 p-2">
+                            <button onClick={addPollOption} className="text-[#0095F6] text-sm font-semibold self-start hover:opacity-80 p-1">
                                 + Add Option
                             </button>
                         )}
                     </div>
                 )}
 
-                {/* Image Previews Carousel */}
+                {/* Image Previews (Horizontal Scroll) */}
                 {previews.length > 0 && !isPollMode && (
-                    <div className="mt-4 flex gap-3 overflow-x-auto pb-4 no-scrollbar snap-x">
+                    <div className="mt-6 flex gap-3 overflow-x-auto pb-4 no-scrollbar">
                         {previews.map((src, index) => (
-                            <div key={index} className="relative flex-shrink-0 w-48 aspect-[4/5] rounded-xl overflow-hidden snap-center border border-white/10 bg-gray-900">
+                            <div key={index} className="relative flex-shrink-0 w-32 aspect-[4/5] rounded-lg overflow-hidden border border-white/10 bg-gray-900 group">
                                 <img src={src} alt={`Preview ${index}`} className="w-full h-full object-cover" />
                                 <button
                                     onClick={() => handleRemoveImage(index)}
-                                    className="absolute top-2 right-2 bg-black/50 text-white rounded-full p-1.5 hover:bg-black/80 transition-colors backdrop-blur-sm"
+                                    className="absolute top-1 right-1 bg-black/60 text-white rounded-full p-1 hover:bg-black/90"
                                 >
-                                    <XMarkIcon className="w-4 h-4" />
+                                    <XMarkIcon className="w-3 h-3" />
                                 </button>
-                                <div className="absolute bottom-2 right-2 bg-black/60 px-2 py-0.5 rounded-lg text-xs text-white font-bold backdrop-blur-sm">
-                                    {index + 1}/{previews.length}
-                                </div>
                             </div>
                         ))}
                         {previews.length < 10 && (
                             <button
                                 onClick={() => fileInputRef.current?.click()}
-                                className="flex-shrink-0 w-48 aspect-[4/5] rounded-xl border-2 border-dashed border-white/10 flex flex-col items-center justify-center gap-2 hover:border-white/30 hover:bg-white/5 transition-all snap-center"
+                                className="flex-shrink-0 w-32 aspect-[4/5] rounded-lg border border-dashed border-gray-700 flex items-center justify-center hover:bg-white/5 transition-colors"
                             >
-                                <PhotoIcon className="w-8 h-8 text-gray-500" />
-                                <span className="text-sm text-gray-500">Add More</span>
+                                <span className="text-2xl text-gray-600">+</span>
                             </button>
                         )}
                     </div>
                 )}
             </div>
 
-            {/* Bottom Actions */}
-            <div className="p-4 border-t border-white/5 bg-black">
-                {/* Tools Grid */}
-                <div className="grid grid-cols-2 gap-3 mb-4">
-                    {/* Add Photo Button */}
-                    <button
-                        onClick={() => {
-                            setIsPollMode(false);
-                            fileInputRef.current?.click();
-                        }}
-                        className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${!isPollMode && previews.length > 0 ? 'bg-blue-500/10 border-blue-500/50' : 'bg-[#1F2937] border-white/5 hover:bg-[#374151]'}`}
-                    >
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${!isPollMode ? 'bg-blue-500/20' : 'bg-gray-700'}`}>
-                            <PhotoIcon className={`w-4 h-4 ${!isPollMode ? 'text-blue-500' : 'text-gray-400'}`} />
-                        </div>
-                        <span className="text-white text-sm font-medium">Photo</span>
-                    </button>
-
-                    {/* Poll Button */}
-                    <button
-                        onClick={() => {
-                            if (previews.length > 0) {
-                                if (confirm('Switching to Poll mode will remove selected images. Continue?')) {
-                                    setPreviews([]);
-                                    setSelectedFiles([]);
-                                    setIsPollMode(true);
-                                }
-                            } else {
-                                setIsPollMode(!isPollMode);
-                            }
-                        }}
-                        className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${isPollMode ? 'bg-green-500/10 border-green-500/50' : 'bg-[#1F2937] border-white/5 hover:bg-[#374151]'}`}
-                    >
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${isPollMode ? 'bg-green-500/20' : 'bg-gray-700'}`}>
-                            <ChartBarIcon className={`w-4 h-4 ${isPollMode ? 'text-green-500' : 'text-gray-400'}`} />
-                        </div>
-                        <span className="text-white text-sm font-medium">Poll</span>
-                    </button>
-                </div>
-
+            {/* Bottom Toolbar (Keyboard Accessory Style) */}
+            <div className={`p-3 border-t border-white/10 bg-black flex items-center gap-4 ${isPollMode ? 'pb-6' : ''}`}>
                 <input
                     type="file"
                     multiple
@@ -278,6 +243,44 @@ const CreatePostView: React.FC<CreatePostViewProps> = ({ onPostSuccess, onCancel
                     className="hidden"
                     onChange={handleImageChange}
                 />
+
+                {/* Photo Button */}
+                <button
+                    onClick={() => {
+                        setIsPollMode(false);
+                        fileInputRef.current?.click();
+                    }}
+                    className={`p-2 rounded-full transition-all ${!isPollMode && previews.length > 0 ? 'bg-[#0095F6] text-white' : 'text-gray-400 hover:text-white'}`}
+                >
+                    <PhotoIcon className="w-7 h-7 stroke-[1.5px]" />
+                </button>
+
+                {/* Poll Button */}
+                <button
+                    onClick={() => {
+                        if (previews.length > 0) {
+                            if (confirm('Switching to Poll mode will remove selected images. Continue?')) {
+                                setPreviews([]);
+                                setSelectedFiles([]);
+                                setIsPollMode(true);
+                            }
+                        } else {
+                            setIsPollMode(!isPollMode);
+                        }
+                    }}
+                    className={`p-2 rounded-full transition-all ${isPollMode ? 'bg-[#0095F6] text-white' : 'text-gray-400 hover:text-white'}`}
+                >
+                    <ChartBarIcon className="w-7 h-7 stroke-[1.5px]" />
+                </button>
+
+                <div className="flex-1"></div>
+
+                {/* Character Count (Only show if typed) */}
+                {text.length > 0 && (
+                    <span className={`text-xs font-medium ${charCount > maxChars * 0.9 ? 'text-red-500' : 'text-gray-500'}`}>
+                        {charCount}/{maxChars}
+                    </span>
+                )}
             </div>
         </div>
     );
