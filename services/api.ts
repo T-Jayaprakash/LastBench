@@ -26,7 +26,9 @@ export {
     deletePost,
 
     // Interactions
+    // Interactions
     toggleLike,
+    voteOnPoll,
 
     // Comments
     getComments,

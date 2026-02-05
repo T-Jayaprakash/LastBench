@@ -3,8 +3,8 @@
  * Handles notifications for Likes, Comments, and Trending posts.
  */
 
-const {onDocumentCreated} = require("firebase-functions/v2/firestore");
-const {setGlobalOptions} = require("firebase-functions/v2");
+const { onDocumentCreated } = require("firebase-functions/v2/firestore");
+const { setGlobalOptions } = require("firebase-functions/v2");
 const admin = require("firebase-admin");
 const logger = require("firebase-functions/logger");
 
@@ -13,7 +13,7 @@ const db = admin.firestore();
 const messaging = admin.messaging();
 
 // Set global options for all functions
-setGlobalOptions({maxInstances: 10, region: "us-central1"});
+setGlobalOptions({ maxInstances: 10, region: "us-central1" });
 
 /**
  * 1. LIKE NOTIFICATION
@@ -27,7 +27,7 @@ exports.onLikeCreated = onDocumentCreated("interactions/{interactionId}", async 
   const interaction = snapshot.data();
   if (interaction.type !== "like") return;
 
-  const {post_id, user_id, comment_id} = interaction;
+  const { post_id, user_id, comment_id } = interaction;
 
   // We only care about Post Likes for now (comments handled separately if needed)
   if (comment_id) return;
@@ -96,7 +96,7 @@ exports.onCommentCreated = onDocumentCreated("comments/{commentId}", async (even
   if (!snapshot) return;
 
   const comment = snapshot.data();
-  const {post_id, author_id: commenter_id, text} = comment;
+  const { post_id, author_id: commenter_id, text } = comment;
 
   try {
     const postRef = db.collection("posts").doc(post_id);
@@ -161,7 +161,7 @@ exports.onPostUpdated = onDocumentCreated("posts/{postId}", async (event) => {
   // Let's switch to onDocumentUpdated.
 });
 
-const {onDocumentUpdated} = require("firebase-functions/v2/firestore");
+const { onDocumentUpdated } = require("firebase-functions/v2/firestore");
 
 exports.checkTrending = onDocumentUpdated("posts/{postId}", async (event) => {
   const before = event.data.before.data();
@@ -249,7 +249,7 @@ async function sendPushNotification(userId, payload) {
         if (!resp.success) {
           const error = resp.error;
           if (error.code === "messaging/invalid-registration-token" ||
-                        error.code === "messaging/registration-token-not-registered") {
+            error.code === "messaging/registration-token-not-registered") {
             invalidTokens.push(tokens[idx]);
           }
         }
@@ -269,3 +269,122 @@ async function sendPushNotification(userId, payload) {
     logger.error(`Error sending push to user ${userId}:`, error);
   }
 }
+
+/**
+ * 4. WELCOME NOTIFICATION
+ * Trigger: When a new FCM token is registered (users/{userId}/fcmTokens/{tokenId}).
+ * Logic: Check if it's a new user (or just send welcome if first token).
+ */
+exports.onNewTokenRegistered = onDocumentCreated("users/{userId}/fcmTokens/{tokenId}", async (event) => {
+  const snapshot = event.data;
+  if (!snapshot) return;
+
+  const { userId } = event.params;
+
+  try {
+    // Check if we already welcomed this user
+    // We'll store a simple flag document
+    const welcomeRef = db.collection("users").doc(userId).collection("system").doc("welcome_sent");
+    const welcomeSnap = await welcomeRef.get();
+
+    if (welcomeSnap.exists) {
+      return; // Already welcomed
+    }
+
+    // Mark as welcomed immediately to prevent race conditions
+    await welcomeRef.set({ sentAt: admin.firestore.FieldValue.serverTimestamp() });
+
+    const message = "Hii , I am Jayaprakash founder of Genfess , welcoming you to our anonoymous community, go talk freely";
+
+    // Create Notification
+    const notificationData = {
+      type: "system",
+      actorUserId: "system",
+      message: message,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      isRead: false,
+    };
+
+    await db.collection("users").doc(userId).collection("notifications").add(notificationData);
+
+    // Send Push
+    await sendPushNotification(userId, {
+      title: "Welcome to Genfess! 🎉",
+      body: message,
+      data: {
+        type: "system",
+      },
+    });
+
+    logger.info(`Welcome notification sent to ${userId}`);
+  } catch (error) {
+    logger.error("Error sending welcome notification:", error);
+  }
+});
+
+/**
+ * 5. PEAK TIME ENGAGEMENT
+ * Trigger: Scheduled every day at 7:00 PM (Asia/Kolkata time approx).
+ * Logic: Send a generic "Check out what's happening" message to all users.
+ */
+const { onSchedule } = require("firebase-functions/v2/scheduler");
+
+exports.scheduledPeakNotification = onSchedule({
+  schedule: "0 19 * * *", // 7 PM daily
+  timeZone: "Asia/Kolkata",
+  retryConfig: { retryCount: 1 }, // Basic retry
+}, async (event) => {
+  try {
+    // Fetch all tokens from all users using Collection Group Query
+    const tokensSnap = await db.collectionGroup("fcmTokens").get();
+
+    if (tokensSnap.empty) {
+      logger.info("No users to notify.");
+      return;
+    }
+
+    const tokens = tokensSnap.docs.map((doc) => doc.id); // The doc ID is the token itself in our schema
+    const validTokens = [...new Set(tokens)]; // Remove duplicates just in case
+
+    // Messages rotation
+    const messages = [
+      "🔥 Campus is buzzing! See the latest confessions.",
+      "👀 Someone just posted about your department...",
+      "🤫 The tea is hot today. Check Genfess now!",
+      "🌙 Late night thoughts? Share them anonymously.",
+    ];
+    const randomMessage = messages[Math.floor(Math.random() * messages.length)];
+
+    const payload = {
+      notification: {
+        title: "Genfess Update 🔔",
+        body: randomMessage,
+      },
+      data: {
+        click_action: "/",
+      },
+      tokens: validTokens,
+    };
+
+    // Send in batches of 500 (FCM limit)
+    const BATCH_SIZE = 500;
+    let successCount = 0;
+    let failureCount = 0;
+
+    for (let i = 0; i < validTokens.length; i += BATCH_SIZE) {
+      const batchTokens = validTokens.slice(i, i + BATCH_SIZE);
+      const batchPayload = { ...payload, tokens: batchTokens };
+
+      const response = await messaging.sendEachForMulticast(batchPayload);
+      successCount += response.successCount;
+      failureCount += response.failureCount;
+
+      // Optional: Cleanup invalid tokens from response
+      // (Omitted for brevity in scheduled task, relies on sendPushNotification helper usually)
+    }
+
+    logger.info(`Peak notification sent. Success: ${successCount}, Failed: ${failureCount}`);
+  } catch (error) {
+    logger.error("Error in scheduledPeakNotification:", error);
+  }
+});

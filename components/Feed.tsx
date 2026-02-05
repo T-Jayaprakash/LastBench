@@ -61,6 +61,43 @@ const Feed: React.FC<FeedProps> = ({
         if (node) observer.current.observe(node);
     }, [loading, hasMore, loadMore]);
 
+    // Vote Handler
+    const handleVote = async (postId: string, optionId: string) => {
+        // Optimistic UI Update
+        setPosts(prev => prev.map(post => {
+            if (post.id === postId && post.poll) {
+                // Check if already voted (double safety)
+                if (post.poll.userVotedOptionId) return post;
+
+                const newOptions = post.poll.options.map(opt => {
+                    if (opt.id === optionId) {
+                        return { ...opt, voteCount: opt.voteCount + 1 };
+                    }
+                    return opt;
+                });
+
+                return {
+                    ...post,
+                    poll: {
+                        ...post.poll,
+                        options: newOptions,
+                        totalVotes: post.poll.totalVotes + 1,
+                        userVotedOptionId: optionId
+                    }
+                };
+            }
+            return post;
+        }));
+
+        try {
+            await import('../services/api').then(api => api.voteOnPoll(postId, optionId));
+        } catch (error) {
+            console.error('Vote failed', error);
+            // Revert would be complex, let's just alert
+            refresh();
+        }
+    };
+
     return (
         <div className="flex flex-col w-full pb-20">
             {posts.map((post, index) => (
@@ -72,6 +109,7 @@ const Feed: React.FC<FeedProps> = ({
                         onCommentClick={onCommentClick}
                         onOptionsClick={onOptionsClick}
                         onImageClick={onViewImages}
+                        onVote={handleVote}
                     />
                 </div>
             ))}

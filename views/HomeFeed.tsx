@@ -27,10 +27,10 @@ const HomeFeed: React.FC<HomeFeedProps> = ({
     onShareSuccess
 }) => {
     return (
-        <div className="flex flex-col h-full bg-background dark:bg-dark-background relative">
+        <div className="flex flex-col h-full bg-black relative">
             <Header user={user} onNotificationClick={onNotificationClick} />
 
-            <div className="flex-1 overflow-y-auto pt-14 no-scrollbar" id="feed-container">
+            <div className="flex-1 overflow-y-auto pt-12 no-scrollbar scroll-smooth" id="feed-container">
                 <Feed
                     user={user}
                     onCommentClick={onCommentClick}

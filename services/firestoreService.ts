@@ -110,6 +110,7 @@ export const mapDocToPost = (doc: QueryDocumentSnapshot<DocumentData>): Post => 
         createdAt: data.created_at?.toDate?.() || new Date(data.created_at) || new Date(),
         trendingScore: (data.likes_count || 0) + ((data.comments_count || 0) * 2),
         isLiked: false, // Will be set separately after checking interactions
+        poll: data.poll
     };
 };
 
@@ -258,14 +259,18 @@ export const getPostById = async (postId: string): Promise<Post | null> => {
 /**
  * Get posts by a specific user (by their anon ID)
  */
-export const getUserPosts = async (anonId: string): Promise<Post[]> => {
+/**
+ * Get posts by a specific user (by their real User ID for profile view)
+ */
+export const getUserPosts = async (userId: string): Promise<Post[]> => {
     try {
-        const user = await getCurrentUser();
+        const currentUser = await getCurrentUser();
         const postsRef = collection(db, COLLECTIONS.POSTS);
 
+        // Query by author_id (stable), not anon_id
         const q = query(
             postsRef,
-            where('author_anon_id', '==', anonId),
+            where('author_id', '==', userId),
             orderBy('created_at', 'desc'),
             limit(50)
         );
@@ -274,9 +279,9 @@ export const getUserPosts = async (anonId: string): Promise<Post[]> => {
         const posts: Post[] = snapshot.docs.map(mapDocToPost);
 
         // Check likes
-        if (user && posts.length > 0) {
+        if (currentUser && posts.length > 0) {
             const postIds = posts.map(p => p.id);
-            const likedPostIds = await getUserLikedPostIds(user.userId, postIds);
+            const likedPostIds = await getUserLikedPostIds(currentUser.userId, postIds);
             posts.forEach(post => {
                 post.isLiked = likedPostIds.has(post.id);
             });
@@ -344,7 +349,7 @@ export const getLikedPosts = async (anonId: string): Promise<Post[]> => {
 /**
  * Create a new post
  */
-export const createPost = async (newPostData: { text: string; images?: string[]; tags: PostTag[] }): Promise<Post | null> => {
+export const createPost = async (newPostData: { text: string; images?: string[]; tags: PostTag[]; poll?: any }): Promise<Post | null> => {
     try {
         const user = await getCurrentUser();
         if (!user) {
@@ -376,6 +381,11 @@ export const createPost = async (newPostData: { text: string; images?: string[];
             postData.image_url = newPostData.images[0];
         }
 
+        // Add poll if provided
+        if (newPostData.poll) {
+            postData.poll = newPostData.poll;
+        }
+
         console.log('📤 Inserting post...');
 
         const postsRef = collection(db, COLLECTIONS.POSTS);
@@ -401,6 +411,7 @@ export const createPost = async (newPostData: { text: string; images?: string[];
             createdAt: new Date(),
             trendingScore: 0,
             isLiked: false,
+            poll: newPostData.poll
         };
 
         return createdPost;
@@ -1182,4 +1193,80 @@ export const subscribeToCommentReplies = (
     }, (error) => {
         console.error('subscribeToCommentReplies error:', error);
     });
+};
+
+/**
+ * Vote on a poll
+ */
+export const voteOnPoll = async (postId: string, optionId: string): Promise<boolean> => {
+    try {
+        const user = await getCurrentUser();
+        if (!user) {
+            alert('Please login to vote');
+            return false;
+        }
+
+        return await runTransaction(db, async (transaction) => {
+            // 1. Check if user already voted
+            const interactionsRef = collection(db, COLLECTIONS.INTERACTIONS);
+            const q = query(
+                interactionsRef,
+                where('user_id', '==', user.userId),
+                where('post_id', '==', postId),
+                where('type', '==', 'vote')
+            );
+
+            // We can't run query inside transaction easily for 'interactions' if it's not the doc we are modifying 
+            // but we can read it first (outside transaction usually, but here we want consistency).
+            // Actually, querying inside transaction is allowed but requires an index.
+            // Simplified: Reads first, then writes.
+            const voteSnap = await getDocs(q);
+            if (!voteSnap.empty) {
+                throw new Error('You have already voted on this poll');
+            }
+
+            // 2. Get the post
+            const postRef = doc(db, COLLECTIONS.POSTS, postId);
+            const postDoc = await transaction.get(postRef);
+
+            if (!postDoc.exists()) throw new Error('Post not found');
+
+            const data = postDoc.data();
+            if (!data.poll) throw new Error('This post is not a poll');
+
+            // 3. Update the poll data
+            const poll = data.poll;
+            const updatedOptions = poll.options.map((opt: any) => {
+                if (opt.id === optionId) {
+                    return { ...opt, voteCount: (opt.voteCount || 0) + 1 };
+                }
+                return opt;
+            });
+
+            // 4. Write updates
+            transaction.update(postRef, {
+                'poll.options': updatedOptions,
+                'poll.totalVotes': (poll.totalVotes || 0) + 1
+            });
+
+            // 5. Record the vote interaction
+            const newInteractionRef = doc(collection(db, COLLECTIONS.INTERACTIONS));
+            transaction.set(newInteractionRef, {
+                user_id: user.userId,
+                post_id: postId,
+                option_id: optionId,
+                type: 'vote',
+                created_at: serverTimestamp()
+            });
+
+            return true;
+        });
+
+    } catch (error: any) {
+        console.error('voteOnPoll error:', error);
+        if (error.message.includes('already voted')) {
+            alert('You have already voted!');
+        }
+        return false;
+    }
 };

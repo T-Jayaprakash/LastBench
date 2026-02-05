@@ -25,6 +25,23 @@ export interface Post {
     trendingScore: number;
     isLiked?: boolean; // Whether the current user has liked this post
     isBookmarked?: boolean; // Whether the current user has saved this post
+    poll?: Poll;
+}
+
+export interface PollOption {
+    id: string;
+    text: string;
+    voteCount: number;
+}
+
+export interface Poll {
+    id: string; // usually same as post id or separate UID
+    question: string;
+    options: PollOption[];
+    totalVotes: number;
+    userVotedOptionId?: string | null; // The option ID the current user voted for, if any
+    allowMultipleAnswers?: boolean; // WhatsApp style allows multiple
+    votingEndsAt?: Date; // Optional expiry
 }
 
 export interface User {

@@ -207,11 +207,9 @@
                         newWorker.addEventListener('statechange', () => {
                             if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
                                 // New version available
-                                console.log('[App] New version available');
-                                if (confirm('A new version of Genfess is available. Refresh to update?')) {
-                                    newWorker.postMessage({ type: 'SKIP_WAITING' });
-                                    window.location.reload();
-                                }
+                                console.log('[App] New version available. Update will happen on next reload.');
+                                // Auto-update logic removed as per user request to avoid popup.
+                                // Users who reload manually will get the new version.
                             }
                         });
                     });

@@ -58,7 +58,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({ user, onUpdateUser, theme, to
             if (!user) return;
             setLoading(true);
             try {
-                const fetchedPosts = await api.getUserPosts(user.anonId);
+                const fetchedPosts = await api.getUserPosts(user.userId);
                 setPosts(fetchedPosts);
             } catch (error) {
                 console.error("Failed to fetch profile posts:", error);
