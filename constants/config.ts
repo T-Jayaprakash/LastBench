@@ -24,4 +24,14 @@ export const DEPARTMENTS: string[] = [
     'AIML',
 ];
 
-export const AVATAR_COLORS = ['#0095f6', '#d62976', '#fa7e1e', '#feda75', '#962fbf', '#4f5bd5', '#00376b'];
+// Premium vibrant avatar colors that pop on dark backgrounds
+export const AVATAR_COLORS = [
+    '#00d4ff', // Cyan
+    '#7c3aed', // Purple
+    '#f43f5e', // Rose
+    '#10b981', // Emerald
+    '#f59e0b', // Amber
+    '#ec4899', // Pink
+    '#3b82f6', // Blue
+    '#8b5cf6', // Violet
+];

@@ -102,57 +102,76 @@ const OnboardingView: React.FC<OnboardingViewProps> = ({ user, onComplete }) => 
     const isSubmitDisabled = !displayName.trim() || (isOtherCollege ? !customCollege.trim() : !college) || !department || isSaving || Object.values(errors).some(e => e);
 
     return (
-        <div className="flex flex-col items-center justify-center min-h-screen bg-background dark:bg-dark-background relative overflow-hidden">
-            {/* Animated background */}
-            <div className="absolute inset-0 opacity-20 dark:opacity-10">
+        <div className="flex flex-col items-center justify-center min-h-screen bg-dark-background relative overflow-hidden">
+            {/* Animated mesh gradient background */}
+            <div className="absolute inset-0">
                 <div
-                    className="absolute inset-0 animate-aurora"
+                    className="absolute inset-0 opacity-30"
                     style={{
-                        backgroundImage: 'radial-gradient(circle at 50% 50%, rgba(139, 92, 246, 0.3) 0%, transparent 60%)',
-                        backgroundSize: '100% 100%',
+                        background: 'radial-gradient(circle at 20% 20%, rgba(0, 212, 255, 0.15) 0%, transparent 40%), radial-gradient(circle at 80% 80%, rgba(124, 58, 237, 0.15) 0%, transparent 40%), radial-gradient(circle at 50% 50%, rgba(244, 63, 94, 0.1) 0%, transparent 50%)',
                     }}
                 />
             </div>
 
-            <div className="relative z-10 w-full max-w-sm px-8 animate-fade-in-up">
-                <h1 className="text-4xl font-bold font-logo gradient-text text-center mb-2">Welcome!</h1>
-                <p className="text-center text-secondary-text dark:text-dark-secondary-text mb-8">Let's set up your profile</p>
+            <div className="relative z-10 w-full max-w-sm px-6 animate-fade-in-up">
+                {/* Logo */}
+                <h1
+                    className="text-4xl font-bold text-center mb-2 tracking-tight"
+                    style={{
+                        fontFamily: "'Outfit', sans-serif",
+                        background: 'linear-gradient(135deg, #00d4ff 0%, #7c3aed 50%, #f43f5e 100%)',
+                        WebkitBackgroundClip: 'text',
+                        WebkitTextFillColor: 'transparent',
+                        backgroundClip: 'text',
+                    }}
+                >
+                    Welcome!
+                </h1>
+                <p className="text-center text-dark-secondary-text mb-8">Let's set up your profile</p>
 
                 <div className="flex flex-col items-center gap-8">
-                    {/* Avatar */}
+                    {/* Avatar with gradient ring */}
                     <div className="flex flex-col items-center gap-3 group">
-                        <div
-                            className="w-32 h-32 rounded-full flex items-center justify-center text-5xl font-bold text-white shadow-2xl transition-all duration-300 transform group-hover:scale-105 cursor-pointer relative overflow-hidden"
-                            style={{ backgroundColor: avatarColor }}
-                            onClick={handleAvatarClick}
-                        >
-                            <span className="relative z-10">{(displayName || 'A').charAt(0).toUpperCase()}</span>
-                            <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                <span className="text-xs font-medium uppercase tracking-wider text-white">Change</span>
+                        <div className="relative">
+                            {/* Gradient glow */}
+                            <div className="absolute -inset-1 rounded-full bg-gradient-to-r from-accent-cyan via-accent-purple to-accent-pink opacity-70 blur-md group-hover:opacity-100 transition-opacity" />
+
+                            <div
+                                className="relative w-28 h-28 rounded-full flex items-center justify-center text-5xl font-bold text-white shadow-2xl transition-all duration-300 cursor-pointer overflow-hidden"
+                                style={{ backgroundColor: avatarColor }}
+                                onClick={handleAvatarClick}
+                            >
+                                <span className="relative z-10">{(displayName || 'A').charAt(0).toUpperCase()}</span>
+                                <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                    <span className="text-xs font-medium uppercase tracking-wider text-white">Tap</span>
+                                </div>
                             </div>
                         </div>
-                        <span className="text-xs font-medium text-secondary-text dark:text-dark-secondary-text uppercase tracking-wider">Tap to change color</span>
+                        <span className="text-xs font-medium text-dark-secondary-text uppercase tracking-wider">Tap to change color</span>
                     </div>
 
                     {/* Form Fields */}
                     <div className="w-full flex flex-col gap-5">
-                        <div className="space-y-1">
-                            <label htmlFor="username" className="text-xs font-bold uppercase tracking-wider text-secondary-text dark:text-dark-secondary-text ml-1">Username</label>
+                        {/* Username */}
+                        <div className="space-y-2">
+                            <label htmlFor="username" className="text-xs font-semibold uppercase tracking-wider text-dark-secondary-text ml-1">Username</label>
                             <input
                                 id="username"
                                 type="text"
                                 value={displayName}
                                 onChange={(e) => setDisplayName(e.target.value)}
-                                className={`w-full bg-white/80 dark:bg-white/5 backdrop-blur-sm border rounded-xl py-4 px-5 text-base focus:outline-none focus:ring-2 transition-all duration-300 ${errors.displayName
-                                        ? 'border-red-400 focus:ring-red-500/50'
-                                        : 'border-gray-200 dark:border-white/10 focus:ring-violet-500/50'
+                                placeholder="#Student123"
+                                className={`w-full bg-dark-surface border rounded-xl py-3.5 px-4 text-dark-primary-text placeholder:text-dark-secondary-text/50 focus:outline-none focus:ring-2 transition-all duration-200 ${errors.displayName
+                                    ? 'border-accent-pink focus:ring-accent-pink/50'
+                                    : 'border-white/10 focus:ring-accent-cyan/50 focus:border-accent-cyan'
                                     }`}
                             />
-                            {errors.displayName && <p className="text-red-500 text-xs ml-1 font-medium">{errors.displayName}</p>}
+                            {errors.displayName && <p className="text-accent-pink text-xs ml-1 font-medium">{errors.displayName}</p>}
                         </div>
 
-                        <div className="space-y-1">
-                            <label htmlFor="college" className="text-xs font-bold uppercase tracking-wider text-secondary-text dark:text-dark-secondary-text ml-1">College</label>
+                        {/* College */}
+                        <div className="space-y-2">
+                            <label htmlFor="college" className="text-xs font-semibold uppercase tracking-wider text-dark-secondary-text ml-1">College</label>
                             <div className="relative">
                                 <select
                                     id="college"
@@ -162,9 +181,9 @@ const OnboardingView: React.FC<OnboardingViewProps> = ({ user, onComplete }) => 
                                         setCollege(val);
                                         setIsOtherCollege(val === 'Other');
                                     }}
-                                    className={`w-full bg-white/80 dark:bg-white/5 backdrop-blur-sm border rounded-xl py-4 px-5 text-base appearance-none focus:outline-none focus:ring-2 transition-all duration-300 ${errors.college && !isOtherCollege
-                                            ? 'border-red-400 focus:ring-red-500/50'
-                                            : 'border-gray-200 dark:border-white/10 focus:ring-violet-500/50'
+                                    className={`w-full bg-dark-surface border rounded-xl py-3.5 px-4 text-dark-primary-text appearance-none focus:outline-none focus:ring-2 transition-all duration-200 ${errors.college && !isOtherCollege
+                                        ? 'border-accent-pink focus:ring-accent-pink/50'
+                                        : 'border-white/10 focus:ring-accent-cyan/50 focus:border-accent-cyan'
                                         }`}
                                 >
                                     <option value="" disabled>Select your college</option>
@@ -172,7 +191,7 @@ const OnboardingView: React.FC<OnboardingViewProps> = ({ user, onComplete }) => 
                                     <option value="Other">Other...</option>
                                 </select>
                                 <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
-                                    <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <svg className="w-5 h-5 text-dark-secondary-text" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                                     </svg>
                                 </div>
@@ -184,45 +203,55 @@ const OnboardingView: React.FC<OnboardingViewProps> = ({ user, onComplete }) => 
                                     value={customCollege}
                                     onChange={e => setCustomCollege(e.target.value)}
                                     placeholder="Enter college name"
-                                    className="mt-3 w-full bg-white/80 dark:bg-white/5 backdrop-blur-sm border border-gray-200 dark:border-white/10 rounded-xl py-4 px-5 text-base focus:outline-none focus:ring-2 focus:ring-violet-500/50 animate-fade-in"
+                                    className="w-full bg-dark-surface border border-white/10 rounded-xl py-3.5 px-4 text-dark-primary-text placeholder:text-dark-secondary-text/50 focus:outline-none focus:ring-2 focus:ring-accent-cyan/50 focus:border-accent-cyan animate-fade-in"
                                     autoFocus
                                 />
                             )}
-                            {errors.college && <p className="text-red-500 text-xs ml-1 font-medium">{errors.college}</p>}
+                            {errors.college && <p className="text-accent-pink text-xs ml-1 font-medium">{errors.college}</p>}
                         </div>
 
-                        <div className="space-y-1">
-                            <label htmlFor="department" className="text-xs font-bold uppercase tracking-wider text-secondary-text dark:text-dark-secondary-text ml-1">Department</label>
+                        {/* Department */}
+                        <div className="space-y-2">
+                            <label htmlFor="department" className="text-xs font-semibold uppercase tracking-wider text-dark-secondary-text ml-1">Department</label>
                             <div className="relative">
                                 <select
                                     id="department"
                                     value={department}
                                     onChange={(e) => setDepartment(e.target.value)}
-                                    className={`w-full bg-white/80 dark:bg-white/5 backdrop-blur-sm border rounded-xl py-4 px-5 text-base appearance-none focus:outline-none focus:ring-2 transition-all duration-300 ${errors.department
-                                            ? 'border-red-400 focus:ring-red-500/50'
-                                            : 'border-gray-200 dark:border-white/10 focus:ring-violet-500/50'
+                                    className={`w-full bg-dark-surface border rounded-xl py-3.5 px-4 text-dark-primary-text appearance-none focus:outline-none focus:ring-2 transition-all duration-200 ${errors.department
+                                        ? 'border-accent-pink focus:ring-accent-pink/50'
+                                        : 'border-white/10 focus:ring-accent-cyan/50 focus:border-accent-cyan'
                                         }`}
                                 >
                                     <option value="" disabled>Select your department</option>
                                     {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
                                 </select>
                                 <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
-                                    <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <svg className="w-5 h-5 text-dark-secondary-text" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                                     </svg>
                                 </div>
                             </div>
-                            {errors.department && <p className="text-red-500 text-xs ml-1 font-medium">{errors.department}</p>}
+                            {errors.department && <p className="text-accent-pink text-xs ml-1 font-medium">{errors.department}</p>}
                         </div>
                     </div>
 
+                    {/* Submit Button */}
                     <button
                         onClick={handleSubmit}
                         disabled={isSubmitDisabled}
-                        className="w-full bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white font-bold py-4 px-6 rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-violet-500/25 hover:shadow-xl hover:shadow-violet-500/30 active:scale-[0.98] mt-4 flex items-center justify-center gap-2"
+                        className="w-full gradient-premium text-white font-semibold py-4 px-6 rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-accent-cyan/20 hover:shadow-xl hover:shadow-accent-cyan/30 active:scale-[0.98] mt-2 flex items-center justify-center gap-2"
                     >
-                        {isSaving ? <ArrowPathIcon className="w-5 h-5 animate-spin" /> : <span>Start Exploring</span>}
-                        {!isSaving && <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>}
+                        {isSaving ? (
+                            <ArrowPathIcon className="w-5 h-5 animate-spin" />
+                        ) : (
+                            <>
+                                <span>Start Exploring</span>
+                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                                </svg>
+                            </>
+                        )}
                     </button>
                 </div>
             </div>

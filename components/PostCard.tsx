@@ -33,8 +33,18 @@ const timeAgo = (date: Date): string => {
 };
 
 const PostCard: React.FC<PostCardProps> = memo(({ post, currentUser, onCommentClick, onOptionsClick, onImageClick, onShareSuccess, index = 0 }) => {
+    // Derived state for consistency (show updated profile immediately for own posts)
+    const isOwner = currentUser?.anonId === post.authorAnonId;
+    const displayName = isOwner ? currentUser.displayName : post.displayName;
+    const avatarUrl = isOwner ? currentUser.avatarUrl : post.authorAvatarUrl;
+    const avatarColor = isOwner ? currentUser.avatarColor : post.authorAvatarColor;
+    const college = isOwner ? currentUser.college : post.college;
+    const department = isOwner ? currentUser.department : post.department;
+
     const [isLiked, setIsLiked] = useState(post.isLiked || false);
     const [likesCount, setLikesCount] = useState(post.likesCount);
+
+    // ... rest of state ...
     const [commentsCount, setCommentsCount] = useState(post.commentsCount);
     const [isBookmarked, setIsBookmarked] = useState(post.isBookmarked || false);
     const [showHeart, setShowHeart] = useState(false);
@@ -149,47 +159,54 @@ const PostCard: React.FC<PostCardProps> = memo(({ post, currentUser, onCommentCl
     return (
         <div
             ref={cardRef}
-            className={`w-full bg-card-bg dark:bg-dark-card-bg flex flex-col mb-4 md:mb-6 rounded-none md:rounded-3xl border-b md:border border-border-color dark:border-dark-border-color md:shadow-sm overflow-hidden animate-slide-up-fade opacity-0 fill-mode-forwards`}
+            className="w-full bg-dark-surface flex flex-col mb-3 md:mb-5 rounded-none md:rounded-2xl border-b md:border border-white/5 overflow-hidden animate-slide-up-fade opacity-0 fill-mode-forwards"
             style={index < 8 ? { animationDelay } : { opacity: 1, animation: 'none' }}
         >
             {/* Header */}
             <div className="flex items-center p-3.5">
-                <div
-                    className="relative w-10 h-10 rounded-full flex items-center justify-center overflow-hidden mr-3 bg-gray-100 dark:bg-gray-800 ring-1 ring-gray-100 dark:ring-white/10"
-                    style={{ backgroundColor: (post.authorAvatarUrl && !avatarError) ? undefined : post.authorAvatarColor }}
-                >
-                    {post.authorAvatarUrl && !avatarError ? (
-                        <img
-                            src={post.authorAvatarUrl}
-                            alt={post.displayName}
-                            className="w-full h-full object-cover"
-                            onError={() => setAvatarError(true)}
-                            loading="lazy"
-                        />
-                    ) : (
-                        <span className="text-white font-bold text-lg">
-                            {(post.displayName || 'A').charAt(0).toUpperCase()}
-                        </span>
-                    )}
-                </div>
-                <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1">
-                        <p className="font-bold text-sm text-primary-text dark:text-dark-primary-text truncate">
-                            {post.displayName}
-                        </p>
-                        {timeAgo(post.createdAt) === 'now' && (
-                            <span className="w-1.5 h-1.5 rounded-full bg-accent-primary animate-pulse" title="Just posted" />
+                {/* Avatar with gradient ring on hover */}
+                <div className="relative group">
+                    <div
+                        className="relative w-11 h-11 rounded-full flex items-center justify-center overflow-hidden bg-dark-border"
+                        style={{ backgroundColor: (avatarUrl && !avatarError) ? undefined : avatarColor }}
+                    >
+                        {avatarUrl && !avatarError ? (
+                            <img
+                                src={avatarUrl}
+                                alt={displayName}
+                                className="w-full h-full object-cover"
+                                onError={() => setAvatarError(true)}
+                                loading="lazy"
+                            />
+                        ) : (
+                            <span className="text-white font-bold text-lg">
+                                {(displayName || 'A').charAt(0).toUpperCase()}
+                            </span>
                         )}
                     </div>
-                    {post.college && (
-                        <p className="text-xs font-medium text-secondary-text dark:text-dark-secondary-text truncate">
-                            {post.college} {post.department ? `• ${post.department}` : ''}
+                    {/* Gradient ring effect */}
+                    <div className="absolute -inset-0.5 rounded-full bg-gradient-to-r from-accent-cyan via-accent-purple to-accent-pink opacity-0 group-hover:opacity-50 transition-opacity -z-10 blur-sm" />
+                </div>
+
+                <div className="flex-1 min-w-0 ml-3">
+                    {/* Username Badge - Visible everywhere */}
+                    <div className="flex items-center gap-2">
+                        <span className="username-badge">
+                            {displayName}
+                        </span>
+                        {timeAgo(post.createdAt) === 'now' && (
+                            <span className="w-2 h-2 rounded-full bg-accent-cyan animate-pulse shadow-glow-cyan" title="Just posted" />
+                        )}
+                    </div>
+                    {college && (
+                        <p className="text-xs font-medium text-dark-secondary-text truncate mt-0.5">
+                            {college} {department ? `• ${department}` : ''}
                         </p>
                     )}
                 </div>
                 <button
                     onClick={() => onOptionsClick(post)}
-                    className="p-2 -mr-2 text-primary-text dark:text-dark-primary-text opacity-70 hover:opacity-100 transition-opacity rounded-full hover:bg-gray-100 dark:hover:bg-white/10"
+                    className="p-2 -mr-2 text-dark-secondary-text hover:text-dark-primary-text transition-colors rounded-full hover:bg-white/5"
                 >
                     <ThreeDotsIcon className="w-5 h-5" />
                 </button>
@@ -201,13 +218,29 @@ const PostCard: React.FC<PostCardProps> = memo(({ post, currentUser, onCommentCl
                 onDoubleClick={postImages.length === 0 ? handleLikeToggle : undefined}
             >
                 <div className="relative">
-                    <p className="text-[17px] leading-relaxed text-primary-text dark:text-dark-primary-text whitespace-pre-wrap break-words font-normal">
+                    <p className="text-[17px] leading-relaxed text-dark-primary-text whitespace-pre-wrap break-words font-normal">
                         {linkifyText(post.text)}
                     </p>
                     {/* Heart Animation for text posts */}
                     {showHeart && postImages.length === 0 && (
                         <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-                            <HeartIcon className="w-20 h-20 text-red-500 fill-red-500 drop-shadow-2xl animate-heart-pop opacity-90" />
+                            <div className="relative">
+                                <HeartIcon className="w-24 h-24 text-accent-pink fill-accent-pink drop-shadow-2xl" style={{ animation: 'heartBurst 0.8s ease-out forwards' }} />
+                                {/* Particle effects */}
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                    {[...Array(6)].map((_, i) => (
+                                        <div
+                                            key={i}
+                                            className="absolute w-2 h-2 rounded-full bg-accent-pink"
+                                            style={{
+                                                animation: `particle 0.6s ease-out forwards`,
+                                                animationDelay: `${i * 0.05}s`,
+                                                transform: `rotate(${i * 60}deg) translateY(-40px)`,
+                                            }}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
                         </div>
                     )}
                 </div>
@@ -215,7 +248,7 @@ const PostCard: React.FC<PostCardProps> = memo(({ post, currentUser, onCommentCl
 
             {/* Images */}
             {postImages.length > 0 && (
-                <div className="relative w-full aspect-square bg-gray-50 dark:bg-black/50 overflow-hidden">
+                <div className="relative w-full aspect-square bg-dark-background overflow-hidden">
                     <div
                         className="flex w-full h-full overflow-x-auto snap-x snap-mandatory no-scrollbar"
                         onScroll={handleScroll}
@@ -229,7 +262,6 @@ const PostCard: React.FC<PostCardProps> = memo(({ post, currentUser, onCommentCl
                                     className="w-full h-full object-cover"
                                     onClick={() => onImageClick(postImages, idx)}
                                 />
-                                <div className="absolute inset-0 bg-gradient-to-t from-black/5 to-transparent opacity-0 hover:opacity-100 transition-opacity" />
                                 <div
                                     className="absolute inset-0"
                                     onDoubleClick={handleLikeToggle}
@@ -241,13 +273,13 @@ const PostCard: React.FC<PostCardProps> = memo(({ post, currentUser, onCommentCl
 
                     {/* Pagination Dots */}
                     {postImages.length > 1 && (
-                        <div className="absolute -bottom-6 left-0 right-0 flex justify-center gap-1.5 pointer-events-none transition-all duration-300 transform translate-y-0 z-10">
+                        <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-1.5 pointer-events-none z-10">
                             {postImages.map((_, idx) => (
                                 <div
                                     key={idx}
                                     className={`h-1.5 rounded-full transition-all duration-300 ${currentSlide === idx
-                                            ? 'w-4 bg-accent-primary'
-                                            : 'w-1.5 bg-white/40 backdrop-blur-sm'
+                                        ? 'w-4 bg-accent-cyan shadow-glow-cyan'
+                                        : 'w-1.5 bg-white/30'
                                         }`}
                                 />
                             ))}
@@ -257,13 +289,29 @@ const PostCard: React.FC<PostCardProps> = memo(({ post, currentUser, onCommentCl
                     {/* Heart Overlay */}
                     {showHeart && (
                         <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
-                            <HeartIcon className="w-24 h-24 text-white fill-white drop-shadow-2xl animate-heart-pop" />
+                            <div className="relative">
+                                <HeartIcon className="w-28 h-28 text-white fill-white" style={{ animation: 'heartBurst 0.8s ease-out forwards', filter: 'drop-shadow(0 0 20px rgba(255,255,255,0.5))' }} />
+                                {/* Particle effects */}
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                    {[...Array(8)].map((_, i) => (
+                                        <div
+                                            key={i}
+                                            className="absolute w-3 h-3 rounded-full bg-white"
+                                            style={{
+                                                animation: `particle 0.7s ease-out forwards`,
+                                                animationDelay: `${i * 0.04}s`,
+                                                transform: `rotate(${i * 45}deg) translateY(-50px)`,
+                                            }}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
                         </div>
                     )}
 
                     {/* Image Counter Badge */}
                     {postImages.length > 1 && (
-                        <div className="absolute top-3 right-3 bg-black/60 backdrop-blur-md text-white/90 text-[10px] font-bold px-2 py-1 rounded-full border border-white/10">
+                        <div className="absolute top-3 right-3 bg-dark-background/70 backdrop-blur-md text-white/90 text-[10px] font-bold px-2 py-1 rounded-full border border-white/10">
                             {currentSlide + 1}/{postImages.length}
                         </div>
                     )}
@@ -272,10 +320,10 @@ const PostCard: React.FC<PostCardProps> = memo(({ post, currentUser, onCommentCl
 
             {/* Actions */}
             <div className="flex items-center justify-between px-3 py-3">
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-5">
                     <ActionButton
                         icon={HeartIcon}
-                        activeIcon={<HeartIcon className="w-7 h-7 text-red-500 fill-red-500" />}
+                        activeIcon={<HeartIcon className="w-7 h-7 text-accent-pink fill-accent-pink animate-like-pop" />}
                         onClick={handleLikeToggle}
                         active={isLiked}
                     />
@@ -293,7 +341,7 @@ const PostCard: React.FC<PostCardProps> = memo(({ post, currentUser, onCommentCl
                 <div>
                     <ActionButton
                         icon={BookmarkIcon}
-                        activeIcon={<BookmarkIcon className="w-7 h-7 text-primary-text dark:text-dark-primary-text fill-primary-text dark:fill-dark-primary-text" />}
+                        activeIcon={<BookmarkIcon className="w-7 h-7 text-accent-cyan fill-accent-cyan" />}
                         onClick={handleBookmarkToggle}
                         active={isBookmarked}
                         className={showBookmarkAnimation ? 'animate-bounce-small' : ''}
@@ -303,20 +351,20 @@ const PostCard: React.FC<PostCardProps> = memo(({ post, currentUser, onCommentCl
 
             {/* Footer Stats */}
             <div className="px-4 pb-4">
-                <p className="text-sm font-bold text-primary-text dark:text-dark-primary-text">
+                <p className="text-sm font-semibold text-dark-primary-text">
                     {(likesCount || 0).toLocaleString()} {(likesCount || 0) === 1 ? 'like' : 'likes'}
                 </p>
 
                 {commentsCount > 0 && (
                     <button
                         onClick={() => onCommentClick(post)}
-                        className="mt-1.5 text-secondary-text dark:text-dark-secondary-text text-sm hover:text-primary-text dark:hover:text-dark-primary-text transition-colors"
+                        className="mt-1 text-dark-secondary-text text-sm hover:text-dark-primary-text transition-colors"
                     >
                         View all {commentsCount} comments
                     </button>
                 )}
 
-                <p className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-wide mt-1.5 font-medium">
+                <p className="text-[10px] text-dark-secondary-text uppercase tracking-wider mt-1.5 font-medium">
                     {timeAgo(post.createdAt)}
                 </p>
             </div>
@@ -338,12 +386,12 @@ const ActionButton: React.FC<ActionButtonProps> = ({ icon: Icon, activeIcon, onC
         <button
             onClick={onClick}
             disabled={disabled}
-            className={`group active:scale-90 transition-transform duration-200 focus:outline-none ${className}`}
+            className={`group active:scale-90 transition-all duration-200 focus:outline-none ${className}`}
         >
             {active && activeIcon ? (
                 activeIcon
             ) : (
-                <Icon className="w-7 h-7 text-primary-text dark:text-dark-primary-text group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors" />
+                <Icon className="w-7 h-7 text-dark-secondary-text group-hover:text-dark-primary-text transition-colors" />
             )}
         </button>
     );

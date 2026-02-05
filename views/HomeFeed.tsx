@@ -22,16 +22,19 @@ interface HomeFeedProps {
 }
 
 const FeedSkeleton = () => (
-    <div className="w-full bg-card-bg dark:bg-dark-card-bg border-b border-border-color dark:border-dark-border-color p-4 md:rounded-3xl md:mb-6 md:border md:shadow-sm">
+    <div className="w-full bg-dark-surface border-b border-white/5 p-4 md:rounded-2xl md:mb-5 md:border">
         <div className="flex items-center mb-4">
-            <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-800 mr-3 animate-pulse"></div>
-            <div className="h-4 bg-gray-200 dark:bg-gray-800 rounded w-32 animate-pulse"></div>
+            <div className="w-11 h-11 rounded-full bg-white/5 mr-3 animate-pulse"></div>
+            <div className="space-y-2">
+                <div className="h-3 bg-white/5 rounded w-24 animate-pulse"></div>
+                <div className="h-2 bg-white/5 rounded w-32 animate-pulse"></div>
+            </div>
         </div>
         <div className="space-y-3 mb-4">
-            <div className="h-4 bg-gray-200 dark:bg-gray-800 rounded w-full animate-pulse"></div>
-            <div className="h-4 bg-gray-200 dark:bg-gray-800 rounded w-3/4 animate-pulse"></div>
+            <div className="h-4 bg-white/5 rounded w-full animate-pulse"></div>
+            <div className="h-4 bg-white/5 rounded w-3/4 animate-pulse"></div>
         </div>
-        <div className="w-full aspect-square bg-gray-200 dark:bg-gray-800 rounded-xl animate-pulse"></div>
+        <div className="w-full aspect-square bg-white/5 rounded-xl animate-pulse"></div>
     </div>
 );
 
@@ -128,7 +131,7 @@ const HomeFeed: React.FC<HomeFeedProps> = ({ user, onCommentClick, onOptionsClic
     const rotation = refreshing ? 0 : pullDelta * 2;
 
     return (
-        <div className="h-full flex flex-col bg-background dark:bg-dark-background overflow-hidden relative">
+        <div className="h-full flex flex-col bg-dark-background overflow-hidden relative">
             <Header isVisible={showHeader} user={user} onNotificationClick={onNotificationClick} />
 
             <div
@@ -148,9 +151,9 @@ const HomeFeed: React.FC<HomeFeedProps> = ({ user, onCommentClick, onOptionsClic
                         opacity: showPill ? 1 : 0,
                     }}
                 >
-                    <div className="bg-white dark:bg-gray-800 rounded-full p-2.5 shadow-xl border border-gray-100 dark:border-white/10 ring-1 ring-black/5">
+                    <div className="bg-dark-surface rounded-full p-2.5 shadow-xl border border-white/10">
                         <ArrowPathIcon
-                            className={`w-5 h-5 text-accent-primary ${refreshing ? 'animate-spin' : ''}`}
+                            className={`w-5 h-5 text-accent-cyan ${refreshing ? 'animate-spin' : ''}`}
                             style={{ transform: `rotate(${rotation}deg)` }}
                         />
                     </div>
@@ -180,37 +183,40 @@ const HomeFeed: React.FC<HomeFeedProps> = ({ user, onCommentClick, onOptionsClic
                             </div>
 
                             {loading && (
-                                <div className="space-y-6 mt-4">
+                                <div className="space-y-5 mt-4">
                                     <FeedSkeleton />
                                     <FeedSkeleton />
                                 </div>
                             )}
 
                             {!hasMore && !loading && posts.length > 5 && (
-                                <div className="flex flex-col items-center justify-center py-12 text-center opacity-60">
-                                    <div className="w-12 h-12 rounded-full bg-gray-100 dark:bg-white/5 flex items-center justify-center mb-3 text-2xl">
+                                <div className="flex flex-col items-center justify-center py-12 text-center">
+                                    <div className="w-14 h-14 rounded-full gradient-premium-soft flex items-center justify-center mb-3 text-2xl">
                                         🎉
                                     </div>
-                                    <p className="text-sm font-medium text-secondary-text dark:text-dark-secondary-text">
+                                    <p className="text-sm font-medium text-dark-secondary-text">
                                         You've reached the end
+                                    </p>
+                                    <p className="text-xs text-dark-secondary-text/60 mt-1">
+                                        Pull down to refresh
                                     </p>
                                 </div>
                             )}
                         </>
                     ) : (
                         loading ? (
-                            <div className="space-y-6 pt-4">
+                            <div className="space-y-5 pt-4">
                                 <FeedSkeleton />
                                 <FeedSkeleton />
                                 <FeedSkeleton />
                             </div>
                         ) : (
                             <div className="flex flex-col items-center justify-center h-[60vh] px-8 text-center animate-fade-in">
-                                <div className="w-20 h-20 bg-gray-100 dark:bg-white/5 rounded-full flex items-center justify-center mb-6">
-                                    <span className="text-4xl text-gray-400">📝</span>
+                                <div className="w-20 h-20 gradient-premium-soft rounded-full flex items-center justify-center mb-6">
+                                    <span className="text-4xl">📝</span>
                                 </div>
-                                <h3 className="text-xl font-bold text-primary-text dark:text-dark-primary-text mb-2">No posts yet</h3>
-                                <p className="text-secondary-text dark:text-dark-secondary-text max-w-xs">
+                                <h3 className="text-xl font-bold text-dark-primary-text mb-2">No posts yet</h3>
+                                <p className="text-dark-secondary-text max-w-xs">
                                     {user?.college
                                         ? `Be the first to create a post for ${user.college}!`
                                         : "Join a college to verify your account and see posts."}

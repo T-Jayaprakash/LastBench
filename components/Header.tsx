@@ -43,24 +43,28 @@ const Header: React.FC<HeaderProps> = ({ isVisible = true, user, onNotificationC
                 }`}
             style={{ paddingTop: 'env(safe-area-inset-top)' }}
         >
-            {/* Glass background */}
-            <div className="absolute inset-0 bg-white/80 dark:bg-black/90 backdrop-blur-xl border-b border-gray-200/50 dark:border-white/5" />
+            {/* Premium Glass Background */}
+            <div className="absolute inset-0 bg-dark-background/80 backdrop-blur-2xl border-b border-white/5" />
+
+            {/* Gradient accent line */}
+            <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-accent-cyan/30 to-transparent" />
 
             {/* Content */}
-            <div className="relative flex justify-between items-center px-4 py-3">
+            <div className="relative flex justify-between items-center px-4 py-3.5">
                 {/* Left spacer */}
                 <div className="flex-1" />
 
-                {/* Centered logo with gradient */}
+                {/* Centered logo with premium gradient */}
                 <h1
-                    className="absolute left-1/2 transform -translate-x-1/2 text-3xl font-bold select-none"
+                    className="absolute left-1/2 transform -translate-x-1/2 text-3xl font-bold select-none tracking-tight"
                     style={{
-                        fontFamily: "'Satisfy', cursive",
-                        letterSpacing: '0.5px',
-                        background: 'linear-gradient(135deg, #8B5CF6 0%, #D946EF 50%, #EC4899 100%)',
+                        fontFamily: "'Outfit', sans-serif",
+                        letterSpacing: '-0.5px',
+                        background: 'linear-gradient(135deg, #00d4ff 0%, #7c3aed 50%, #f43f5e 100%)',
                         WebkitBackgroundClip: 'text',
                         WebkitTextFillColor: 'transparent',
                         backgroundClip: 'text',
+                        textShadow: '0 0 40px rgba(0, 212, 255, 0.3)',
                     }}
                 >
                     Genfess
@@ -71,12 +75,12 @@ const Header: React.FC<HeaderProps> = ({ isVisible = true, user, onNotificationC
                     {user && (
                         <button
                             onClick={onNotificationClick}
-                            className="relative p-2.5 rounded-full text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/10 transition-all duration-200 active:scale-90"
+                            className="relative p-2.5 rounded-xl text-dark-secondary-text hover:text-dark-primary-text hover:bg-white/5 transition-all duration-200 active:scale-90"
                             aria-label="Notifications"
                         >
                             <BellIcon className="w-6 h-6" />
                             {unreadCount > 0 && (
-                                <span className="absolute -top-0.5 -right-0.5 min-w-[20px] h-[20px] flex items-center justify-center px-1 text-[11px] font-bold text-white bg-gradient-to-r from-rose-500 to-pink-500 rounded-full shadow-lg shadow-rose-500/30 animate-scale-in">
+                                <span className="notification-badge">
                                     {unreadCount > 99 ? '99+' : unreadCount}
                                 </span>
                             )}

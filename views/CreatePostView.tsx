@@ -2,7 +2,7 @@
 import React, { useState, useRef } from 'react';
 import { PostTag, Post } from '../types/index';
 import { t } from '../constants/locales';
-import { PhotoIcon, XMarkIcon } from '../components/Icons';
+import { PhotoIcon, XMarkIcon, SparklesIcon } from '../components/Icons';
 import * as userService from '../services/userService';
 import * as api from '../services/api';
 import { useToast } from '../components/Toast';
@@ -16,7 +16,6 @@ const CreatePostView: React.FC<CreatePostViewProps> = ({ onPostSuccess, onCancel
     const [text, setText] = useState('');
     const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
     const [previews, setPreviews] = useState<string[]>([]);
-    // We remove visual blocking state 'isPosting' to allow immediate close
 
     const fileInputRef = useRef<HTMLInputElement>(null);
     const { showToast, updateToast } = useToast();
@@ -127,53 +126,99 @@ const CreatePostView: React.FC<CreatePostViewProps> = ({ onPostSuccess, onCancel
         }
     };
 
+    const charCount = text.length;
+    const maxChars = 500;
+
     return (
-        <div className="flex flex-col h-full p-6 bg-background dark:bg-black animate-fade-in relative">
-            {/* Title */}
-            <div className="text-center mb-8 mt-4">
-                <h2 className="text-xl font-bold text-gray-500 dark:text-gray-400">{t.newPostCTA}</h2>
+        <div className="flex flex-col h-full bg-dark-background animate-fade-in relative">
+            {/* Header */}
+            <div className="flex items-center justify-between p-4 border-b border-white/5">
+                <button
+                    onClick={onCancel}
+                    className="text-dark-secondary-text hover:text-dark-primary-text font-medium transition-colors"
+                >
+                    Cancel
+                </button>
+
+                <h2 className="text-lg font-semibold text-dark-primary-text">New Post</h2>
+
+                <button
+                    onClick={handleSubmit}
+                    disabled={!text.trim() && selectedFiles.length === 0}
+                    className="gradient-text font-bold disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                    Post
+                </button>
             </div>
 
-            {/* Text Input */}
-            <div className="flex-grow relative">
-                <textarea
-                    className="w-full bg-transparent text-primary-text dark:text-white text-xl placeholder-gray-600 dark:placeholder-gray-700 resize-none focus:outline-none text-center min-h-[120px]"
-                    placeholder={t.whatsOnYourMind}
-                    value={text}
-                    onChange={(e) => setText(e.target.value)}
-                />
+            {/* Content Area */}
+            <div className="flex-grow p-4 overflow-y-auto">
+                {/* Text Input */}
+                <div className="relative">
+                    <textarea
+                        className="w-full bg-transparent text-dark-primary-text text-lg placeholder:text-dark-secondary-text/50 resize-none focus:outline-none min-h-[200px] leading-relaxed"
+                        placeholder={t.whatsOnYourMind}
+                        value={text}
+                        onChange={(e) => setText(e.target.value.slice(0, maxChars))}
+                        autoFocus
+                    />
+
+                    {/* Character count */}
+                    <div className={`text-xs text-right ${charCount > maxChars * 0.9 ? 'text-accent-pink' : 'text-dark-secondary-text/50'}`}>
+                        {charCount}/{maxChars}
+                    </div>
+                </div>
 
                 {/* Image Previews Carousel */}
                 {previews.length > 0 && (
                     <div className="mt-4 flex gap-3 overflow-x-auto pb-4 no-scrollbar snap-x">
                         {previews.map((src, index) => (
-                            <div key={index} className="relative flex-shrink-0 w-60 aspect-[4/5] rounded-lg overflow-hidden snap-center border border-gray-800 bg-gray-900">
+                            <div key={index} className="relative flex-shrink-0 w-48 aspect-[4/5] rounded-xl overflow-hidden snap-center border border-white/10 bg-dark-surface">
                                 <img src={src} alt={`Preview ${index}`} className="w-full h-full object-cover" />
                                 <button
                                     onClick={() => handleRemoveImage(index)}
-                                    className="absolute top-2 right-2 bg-black/60 text-white rounded-full p-1 hover:bg-red-500/80 transition-colors backdrop-blur-sm"
+                                    className="absolute top-2 right-2 bg-dark-background/80 text-white rounded-full p-1.5 hover:bg-accent-pink/80 transition-colors backdrop-blur-sm"
                                 >
                                     <XMarkIcon className="w-4 h-4" />
                                 </button>
-                                <div className="absolute bottom-2 right-2 bg-black/60 px-2 py-0.5 rounded text-xs text-white font-bold backdrop-blur-sm">
-                                    {index + 1}
+                                <div className="absolute bottom-2 right-2 bg-dark-background/80 px-2 py-0.5 rounded-lg text-xs text-white font-bold backdrop-blur-sm">
+                                    {index + 1}/{previews.length}
                                 </div>
                             </div>
                         ))}
+
+                        {/* Add more button */}
+                        {previews.length < 10 && (
+                            <button
+                                onClick={() => fileInputRef.current?.click()}
+                                className="flex-shrink-0 w-48 aspect-[4/5] rounded-xl border-2 border-dashed border-white/10 flex flex-col items-center justify-center gap-2 hover:border-accent-cyan/50 hover:bg-accent-cyan/5 transition-all snap-center"
+                            >
+                                <PhotoIcon className="w-8 h-8 text-dark-secondary-text" />
+                                <span className="text-sm text-dark-secondary-text">Add More</span>
+                            </button>
+                        )}
                     </div>
                 )}
             </div>
 
-            {/* Actions */}
-            <div className="mt-auto">
+            {/* Bottom Actions */}
+            <div className="p-4 border-t border-white/5">
                 {/* Add Photo Button */}
-                <button
-                    onClick={() => fileInputRef.current?.click()}
-                    className="flex items-center gap-2 text-accent-primary font-bold mb-6 hover:text-accent-secondary transition-colors"
-                >
-                    <PhotoIcon className="w-6 h-6" />
-                    <span>{t.addPhoto}</span>
-                </button>
+                {previews.length === 0 && (
+                    <button
+                        onClick={() => fileInputRef.current?.click()}
+                        className="flex items-center gap-3 w-full p-4 rounded-xl bg-dark-surface border border-white/5 hover:border-accent-cyan/30 hover:bg-accent-cyan/5 transition-all mb-4"
+                    >
+                        <div className="w-10 h-10 rounded-full bg-accent-cyan/10 flex items-center justify-center">
+                            <PhotoIcon className="w-5 h-5 text-accent-cyan" />
+                        </div>
+                        <div className="text-left">
+                            <p className="text-dark-primary-text font-medium">{t.addPhoto}</p>
+                            <p className="text-xs text-dark-secondary-text">Up to 10 images</p>
+                        </div>
+                    </button>
+                )}
+
                 <input
                     type="file"
                     multiple
@@ -183,22 +228,15 @@ const CreatePostView: React.FC<CreatePostViewProps> = ({ onPostSuccess, onCancel
                     onChange={handleImageChange}
                 />
 
-                {/* Footer Buttons */}
-                <div className="flex gap-3">
-                    <button
-                        onClick={onCancel}
-                        className="flex-1 py-3 bg-gray-200 dark:bg-gray-800 text-primary-text dark:text-white font-bold rounded-xl active:scale-95 transition-transform"
-                    >
-                        {t.cancel}
-                    </button>
-                    <button
-                        onClick={handleSubmit}
-                        disabled={!text.trim() && selectedFiles.length === 0}
-                        className="flex-1 py-3 bg-gray-700 text-white font-bold rounded-xl active:scale-95 transition-transform disabled:opacity-80 disabled:cursor-not-allowed"
-                    >
-                        {t.post}
-                    </button>
-                </div>
+                {/* Post Button - Full Width */}
+                <button
+                    onClick={handleSubmit}
+                    disabled={!text.trim() && selectedFiles.length === 0}
+                    className="w-full py-4 gradient-premium rounded-xl font-semibold text-white active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-accent-cyan/20 flex items-center justify-center gap-2"
+                >
+                    <SparklesIcon className="w-5 h-5" />
+                    <span>Share Anonymously</span>
+                </button>
             </div>
         </div>
     );

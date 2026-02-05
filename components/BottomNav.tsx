@@ -20,11 +20,14 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentView, setView }) => {
         <nav
             className="fixed bottom-0 left-0 right-0 z-50 transition-all duration-300 pb-[env(safe-area-inset-bottom)]"
         >
-            {/* Glass Background */}
-            <div className="absolute inset-0 bg-white/80 dark:bg-black/90 backdrop-blur-xl border-t border-gray-200/50 dark:border-white/10" />
+            {/* Premium Glass Background */}
+            <div className="absolute inset-0 bg-dark-background/80 backdrop-blur-2xl border-t border-white/5" />
+
+            {/* Gradient accent line */}
+            <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-accent-cyan/20 to-transparent" />
 
             {/* Nav Items */}
-            <div className="relative flex justify-around items-center h-14">
+            <div className="relative flex justify-around items-center h-16">
                 {navItems.map(item => {
                     const isActive = currentView === item.view;
                     return (
@@ -34,25 +37,32 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentView, setView }) => {
                                 if (navigator.vibrate) navigator.vibrate(10);
                                 setView(item.view);
                             }}
-                            className="relative flex flex-col items-center justify-center w-full h-full active:scale-90 transition-transform duration-200 group"
+                            className="relative flex flex-col items-center justify-center w-full h-full active:scale-90 transition-all duration-200 group"
                             aria-label={item.label}
                         >
-                            {/* Icon */}
-                            <div className="relative">
+                            {/* Glow effect for active item */}
+                            {isActive && (
+                                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                    <div className="w-12 h-12 rounded-full bg-accent-cyan/10 blur-xl" />
+                                </div>
+                            )}
+
+                            {/* Icon Container */}
+                            <div className="relative z-10">
                                 <item.icon
                                     className={`w-7 h-7 transition-all duration-300 ${isActive
-                                            ? 'text-primary-text dark:text-white scale-110 drop-shadow-md'
-                                            : 'text-gray-400 dark:text-gray-600 group-hover:text-gray-600 dark:group-hover:text-gray-400'
+                                        ? 'text-accent-cyan scale-110'
+                                        : 'text-dark-secondary-text group-hover:text-dark-primary-text'
                                         }`}
                                     fill={isActive ? 'currentColor' : 'none'}
-                                    strokeWidth={isActive ? 2.5 : 2}
+                                    strokeWidth={isActive ? 2 : 1.5}
                                 />
-
-                                {/* Active Indicator Dot */}
-                                {isActive && (
-                                    <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-primary-text dark:bg-white animate-scale-in" />
-                                )}
                             </div>
+
+                            {/* Active Indicator */}
+                            {isActive && (
+                                <div className="absolute -bottom-0.5 w-1 h-1 rounded-full bg-accent-cyan shadow-glow-cyan animate-scale-in" />
+                            )}
                         </button>
                     );
                 })}

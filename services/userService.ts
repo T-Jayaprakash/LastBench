@@ -98,12 +98,14 @@ export const signUpUser = async (email: string, password: string): Promise<User 
         const fbUser = userCredential.user;
         const college = getCollegeFromEmail(email) || 'Unknown College';
 
-        const anonId = `Student#${Math.floor(Math.random() * 9000) + 1000}`;
+        // Generate random 3-digit number (100-999)
+        const randomNum = Math.floor(Math.random() * 900) + 100;
+        const studentUsername = `#Student${randomNum}`;
         const timestamp = Date.now();
 
         const newProfile = {
-            anon_id: anonId,
-            display_name: email.split('@')[0],
+            anon_id: studentUsername,
+            display_name: studentUsername, // Use #Student{random} as default display name
             avatar_color: getRandomElement(AVATAR_COLORS),
             has_onboarded: false,
             email: email,
