@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Genfess - Anonymous Confessions</title>
+    <meta name="description" content="Share your thoughts anonymously. Connect with your campus.">
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap"
+        rel="stylesheet">
+
+    <style>
+        :root {
+            --bg-color: #050505;
+            --surface-color: #0a0a0a;
+            --text-primary: #ffffff;
+            --text-secondary: #a3a3a3;
+            --accent-gradient: linear-gradient(135deg, #00d4ff 0%, #7c3aed 50%, #f43f5e 100%);
+            --border-color: rgba(255, 255, 255, 0.08);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Background Effects */
+        .bg-glow {
+            position: fixed;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100vw;
+            height: 100vh;
+            background:
+                radial-gradient(circle at 15% 50%, rgba(124, 58, 237, 0.08) 0%, transparent 25%),
+                radial-gradient(circle at 85% 30%, rgba(0, 212, 255, 0.08) 0%, transparent 25%);
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            flex: 1;
+            justify-content: center;
+        }
+
+        /* Brand */
+        .logo-container {
+            position: relative;
+            margin-bottom: 2rem;
+            animation: float 6s ease-in-out infinite;
+        }
+
+        .logo {
+            width: 120px;
+            height: 120px;
+            border-radius: 28px;
+            box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.5);
+            position: relative;
+            z-index: 2;
+        }
+
+        .logo-glow {
+            position: absolute;
+            inset: -10px;
+            background: var(--accent-gradient);
+            border-radius: 35px;
+            opacity: 0.4;
+            filter: blur(20px);
+            z-index: 1;
+            animation: pulse-glow 3s infinite;
+        }
+
+        h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 3.5rem;
+            font-weight: 800;
+            margin-bottom: 0.5rem;
+            background: var(--accent-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.02em;
+        }
+
+        p.tagline {
+            font-size: 1.25rem;
+            color: var(--text-secondary);
+            margin-bottom: 3rem;
+            font-weight: 400;
+            max-width: 400px;
+            line-height: 1.5;
+        }
+
+        /* Cards */
+        .download-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            padding: 2rem;
+            width: 100%;
+            margin-bottom: 1.5rem;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+
+        .download-card:hover {
+            transform: translateY(-5px);
+            border-color: rgba(255, 255, 255, 0.15);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.75rem;
+            width: 100%;
+            padding: 1rem;
+            border-radius: 16px;
+            font-weight: 600;
+            font-size: 1.1rem;
+            text-decoration: none;
+            transition: transform 0.2s;
+            cursor: pointer;
+            margin-top: 1rem;
+        }
+
+        .btn:active {
+            transform: scale(0.98);
+        }
+
+        .btn-primary {
+            background: var(--text-primary);
+            color: #000;
+        }
+
+        .btn-primary:hover {
+            background: #f0f0f0;
+        }
+
+        .btn-outline {
+            background: transparent;
+            color: var(--text-primary);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-outline:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+
+        .btn-icon {
+            width: 24px;
+            height: 24px;
+        }
+
+        .platform-icon {
+            width: 32px;
+            height: 32px;
+            margin-bottom: 1rem;
+            opacity: 0.8;
+        }
+
+        /* iOS Instructions */
+        .ios-guide {
+            margin-top: 2rem;
+            text-align: left;
+            width: 100%;
+        }
+
+        .ios-step {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            background: rgba(255, 255, 255, 0.02);
+            padding: 0.75rem 1rem;
+            border-radius: 12px;
+        }
+
+        .share-icon {
+            width: 20px;
+            height: 20px;
+            stroke: #0A84FF;
+        }
+
+        /* Footer */
+        footer {
+            padding: 2rem;
+            text-align: center;
+            color: rgba(255, 255, 255, 0.2);
+            font-size: 0.875rem;
+        }
+
+        /* Animations */
+        @keyframes float {
+
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-10px);
+            }
+        }
+
+        @keyframes pulse-glow {
+
+            0%,
+            100% {
+                opacity: 0.4;
+                transform: scale(1);
+            }
+
+            50% {
+                opacity: 0.6;
+                transform: scale(1.05);
+            }
+        }
+
+        @media (max-width: 480px) {
+            h1 {
+                font-size: 2.5rem;
+            }
+
+            .container {
+                padding: 1.5rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="bg-glow"></div>
+
+    <div class="container">
+        <div class="logo-container">
+            <div class="logo-glow"></div>
+            <img src="./assets/logo.png" alt="Genfess" class="logo">
+        </div>
+
+        <h1>Genfess</h1>
+        <p class="tagline">Your campus. Your thoughts. <br>Completely anonymous.</p>
+
+        <!-- Android Download -->
+        <div class="download-card">
+            <svg class="platform-icon" viewBox="0 0 24 24" fill="#3DDC84" xmlns="http://www.w3.org/2000/svg">
+                <path
+                    d="M17.523 0c-.39 0-.69.34-.64.71.18 1.48.55 3.51 1.7 5.09-1.5-.13-3.66-.46-5.26-1.54-.15-.1-.36-.06-.46.1-.1.15-.06.36.1.46 1.83 1.25 4.34 1.63 6.13 1.78.36.03.68-.26.68-.62V.71c0-.4-.32-.71-.71-.71h-1.54zm-11.046 0c.39 0 .69.34.64.71-.18 1.48-.55 3.51-1.7 5.09 1.5-.13 3.66-.46 5.26-1.54.15-.1.36-.06.46.1.1.15.06.36-.1.46-1.83 1.25-4.34 1.63-6.13 1.78-.36.03-.68-.26-.68-.62V.71c0-.4.32-.71.71-.71h1.54z" />
+                <path
+                    d="M5.44 6.78C2.26 8.53.5 11.55.05 15.02c-.06.49.33.91.82.91.43 0 .79-.31.88-.73.34-2.61 1.68-4.91 4.09-6.22 2.41-1.31 5.3-1.31 7.71 0 .22.12.48.04.6-.18.12-.22.04-.48-.18-.6-2.66-1.45-5.85-1.45-8.53 0z" />
+            </svg>
+            <h3 style="margin-bottom: 0.5rem; font-weight: 600;">Android App</h3>
+            <p style="font-size: 0.9rem; color: var(--text-secondary);">Download the latest APK file</p>
+            <a href="./app-release.apk" download class="btn btn-primary">
+                <svg class="btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                </svg>
+                Download APK
+            </a>
+        </div>
+
+        <!-- iOS / Web -->
+        <div class="download-card">
+            <svg class="platform-icon" viewBox="0 0 24 24" fill="#FFFFFF" xmlns="http://www.w3.org/2000/svg">
+                <path
+                    d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" />
+            </svg>
+            <h3 style="margin-bottom: 0.5rem; font-weight: 600;">iOS & Web</h3>
+            <p style="font-size: 0.9rem; color: var(--text-secondary);">Install as a PWA / Desktop App</p>
+            <a href="https://genfess-app.web.app" target="_blank" class="btn btn-outline" id="web-link">
+                <svg class="btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                </svg>
+                Open Web App
+            </a>
+
+            <div class="ios-guide">
+                <p style="color: #fff; font-weight: 500; margin-bottom: 1rem; font-size: 0.9rem;">To Install on iOS:</p>
+                <div class="ios-step">
+                    <span>1.</span> Open this link in <strong>Safari</strong>
+                </div>
+                <div class="ios-step">
+                    <span>2.</span> Tap the <strong>Share</strong> button <svg class="share-icon" fill="none"
+                        stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z">
+                        </path>
+                    </svg>
+                </div>
+                <div class="ios-step">
+                    <span>3.</span> Scroll down and tap <strong>Add to Home Screen</strong>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <p>&copy; 2026 Genfess. All rights reserved.</p>
+    </footer>
+
+    <script>
+        // Update the web link dynamically if we are currently on the deployed URL, or keep default
+        // For local development, we might want to point to localhost or the actual deployed URL
+        // If the user pushes this page to GitHub pages, the 'web-link' should likely point to the actual App URL
+        // Currently defaulted to firebase hosting URL as a placeholder
+        const appUrl = "https://genfess-app.web.app";
+        // document.getElementById('web-link').href = appUrl;
+    </script>
+</body>
+
+</html>
