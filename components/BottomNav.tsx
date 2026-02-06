@@ -3,16 +3,16 @@ import React from 'react';
 import { HomeIcon, PlusCircleIcon, UserCircleIcon, HeartIcon, PlayIcon } from './Icons';
 import { View } from '../types/index';
 import { t } from '../constants/locales';
-import { useUnreadNotifications } from '../src/hooks/useUnreadNotifications';
+
 
 interface BottomNavProps {
     currentView: View;
     setView: (view: View) => void;
     userId?: string;
+    unreadCount?: number;
 }
 
-const BottomNav: React.FC<BottomNavProps> = ({ currentView, setView, userId }) => {
-    const unreadCount = useUnreadNotifications(userId);
+const BottomNav: React.FC<BottomNavProps> = ({ currentView, setView, userId, unreadCount = 0 }) => {
 
     const navItems = [
         { view: 'home', icon: HomeIcon, label: t.home, badge: false },

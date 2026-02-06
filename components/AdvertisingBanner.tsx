@@ -33,7 +33,7 @@ const AdvertisingBanner: React.FC<AdvertisingBannerProps> = ({ onPostClick }) =>
     if (bannerPosts.length === 0) return null;
 
     return (
-        <div className="w-full relative bg-gray-900 border-b border-white/10 aspect-[2.5/1] overflow-hidden group">
+        <div className="w-full relative bg-gray-900 border-b border-white/10 aspect-[1.5/1] overflow-hidden group">
             <div
                 className="w-full h-full flex transition-transform duration-700 ease-in-out"
                 style={{ transform: `translateX(-${currentSlide * 100}%)` }}

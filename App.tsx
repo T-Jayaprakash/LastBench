@@ -16,6 +16,7 @@ import { ToastProvider, useToast } from './components/Toast'; // Import Provider
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { checkVersion, shouldCheckVersion, markVersionChecked, getCurrentVersion } from './services/versionService';
 import { PWAInstallPrompt } from './components/PWAInstallPrompt';
+import { useUnreadNotifications } from './src/hooks/useUnreadNotifications';
 
 // Lazy Load heavy components to improve initial rendering speed
 const CommentView = lazy(() => import('./views/CommentView'));
@@ -80,6 +81,7 @@ const AppContent: React.FC = () => {
     const [showUpdateModal, setShowUpdateModal] = useState(false);
     const [updateInfo, setUpdateInfo] = useState<any>(null);
     const [showPWAInstall, setShowPWAInstall] = useState(true);
+    const unreadCount = useUnreadNotifications(user?.userId);
 
 
     // Use Toast for share notifications
@@ -247,30 +249,18 @@ const AppContent: React.FC = () => {
     };
 
     const handleCloseComments = () => {
-        if (historyStackRef.current.length > 1) {
-            historyStackRef.current.pop();
-        }
         window.history.back();
     };
     const handleCloseReport = (wasDeleted?: boolean) => {
-        if (historyStackRef.current.length > 1) {
-            historyStackRef.current.pop();
-        }
         window.history.back();
         if (wasDeleted && reportingPost) {
             setDeletedPostId(reportingPost.id);
         }
     };
     const handleCloseOptions = () => {
-        if (historyStackRef.current.length > 1) {
-            historyStackRef.current.pop();
-        }
         window.history.back();
     };
     const handleCloseImages = () => {
-        if (historyStackRef.current.length > 1) {
-            historyStackRef.current.pop();
-        }
         window.history.back();
     };
 
@@ -316,6 +306,10 @@ const AppContent: React.FC = () => {
             }
             if (optionsPost) {
                 handleCloseOptions();
+                return;
+            }
+            if (editingPost) {
+                handleCloseEdit();
                 return;
             }
 
@@ -423,14 +417,16 @@ const AppContent: React.FC = () => {
                     />
                 </div>
 
-                {currentView === 'reels' && (
-                    <ReelsView
-                        user={user}
-                        onCommentClick={handleShowComments}
-                        onOptionsClick={handleShowOptions}
-                        onViewImages={handleViewImages}
-                    />
-                )}
+                <div className={`h-full w-full ${currentView === 'reels' ? 'block' : 'hidden'}`}>
+                    <Suspense fallback={null}>
+                        <ReelsView
+                            user={user}
+                            onCommentClick={handleShowComments}
+                            onOptionsClick={handleShowOptions}
+                            onViewImages={handleViewImages}
+                        />
+                    </Suspense>
+                </div>
 
                 {currentView === 'create' && (
                     <CreatePostView
@@ -439,7 +435,7 @@ const AppContent: React.FC = () => {
                     />
                 )}
 
-                {currentView === 'profile' && (
+                <div className={`h-full w-full ${currentView === 'profile' ? 'block' : 'hidden'}`}>
                     <ProfileView
                         user={user}
                         onUpdateUser={handleUpdateUser}
@@ -449,13 +445,13 @@ const AppContent: React.FC = () => {
                         onViewImages={handleViewImages}
                         onLogout={handleLogout}
                     />
-                )}
+                </div>
 
-                {currentView === 'notifications' && (
+                <div className={`h-full w-full ${currentView === 'notifications' ? 'block' : 'hidden'}`}>
                     <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="animate-spin h-8 w-8 border-2 border-accent-primary border-t-transparent rounded-full"></div></div>}>
                         <NotificationsView userId={user.userId} onBack={() => window.history.back()} />
                     </Suspense>
-                )}
+                </div>
 
                 {currentView === 'settings' && (
                     <Suspense fallback={null}>
@@ -470,8 +466,8 @@ const AppContent: React.FC = () => {
                 )}
             </main>
 
-            {currentView !== 'create' && currentView !== 'notifications' && currentView !== 'settings' && (
-                <BottomNav currentView={currentView} setView={navigateTo} userId={user.userId} />
+            {currentView !== 'create' && currentView !== 'settings' && (
+                <BottomNav currentView={currentView} setView={navigateTo} userId={user.userId} unreadCount={unreadCount} />
             )}
 
             <Suspense fallback={null}>

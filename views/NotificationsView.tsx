@@ -106,7 +106,7 @@ const NotificationsView: React.FC<NotificationsViewProps> = ({ userId, onBack })
     const unreadCount = notifications.filter(n => !n.read).length;
 
     return (
-        <div className="h-full flex flex-col bg-background dark:bg-dark-background">
+        <div className="h-full flex flex-col bg-background dark:bg-dark-background pb-16">
             {/* Header */}
             <header className="flex-shrink-0 bg-background dark:bg-dark-background border-b border-border-color dark:border-dark-border-color px-4 py-3 pt-12 flex items-center justify-between sticky top-0 z-10">
                 <div className="flex items-center gap-3">
