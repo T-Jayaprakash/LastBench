@@ -288,27 +288,27 @@ export const useFeed = (userCollege: string | undefined, userId: string | undefi
             }
 
             snapshot.docChanges().forEach(async change => {
-                if (change.type === 'added') {
-                    const newPost = mapDocToPost(change.doc as any);
+                const changedPost = mapDocToPost(change.doc as any);
 
+                if (change.type === 'added') {
                     // Check if post is already in the list
                     setPosts(prev => {
-                        if (prev.find(p => p.id === newPost.id)) {
+                        if (prev.find(p => p.id === changedPost.id)) {
                             return prev;
                         }
 
                         // Check if user liked or voted on this post
                         if (userId) {
                             Promise.all([
-                                getUserLikedPostIds(userId, [newPost.id]),
-                                getUserPollVotes(userId, [newPost.id])
+                                getUserLikedPostIds(userId, [changedPost.id]),
+                                getUserPollVotes(userId, [changedPost.id])
                             ]).then(([likedIds, pollVotes]) => {
                                 setPosts(current =>
                                     current.map(p => {
-                                        if (p.id === newPost.id) {
-                                            const updatedPost = { ...p, isLiked: likedIds.has(newPost.id) };
-                                            if (updatedPost.poll && pollVotes.has(newPost.id)) {
-                                                updatedPost.poll.userVotedOptionId = pollVotes.get(newPost.id);
+                                        if (p.id === changedPost.id) {
+                                            const updatedPost = { ...p, isLiked: likedIds.has(changedPost.id) };
+                                            if (updatedPost.poll && pollVotes.has(changedPost.id)) {
+                                                updatedPost.poll.userVotedOptionId = pollVotes.get(changedPost.id);
                                             }
                                             return updatedPost;
                                         }
@@ -318,11 +318,30 @@ export const useFeed = (userCollege: string | undefined, userId: string | undefi
                             });
                         }
 
-                        console.log('🆕 New post received via realtime:', newPost.id);
-                        return [newPost, ...prev];
+                        console.log('🆕 New post received via realtime:', changedPost.id);
+                        return [changedPost, ...prev];
                     });
+                } else if (change.type === 'modified') {
+                    // Update existing post (e.g. poll votes, comments count)
+                    setPosts(prev => prev.map(p => {
+                        if (p.id === changedPost.id) {
+                            // Preserve local state like isLiked and userVotedOptionId unless we want to refetch them
+                            // For poll counts, we want the server value.
+                            // For user specific stuff, we keep local.
+                            return {
+                                ...changedPost,
+                                isLiked: p.isLiked, // Keep local like state (optimistic or separate collection)
+                                poll: changedPost.poll ? {
+                                    ...changedPost.poll,
+                                    userVotedOptionId: p.poll?.userVotedOptionId // Keep local vote
+                                } : undefined
+                            };
+                        }
+                        return p;
+                    }));
                 }
             });
+
         }, (error) => {
             console.error('Feed realtime subscription error:', error);
         });

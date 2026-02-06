@@ -170,7 +170,7 @@ const CommentView: React.FC<CommentViewProps> = ({ post, currentUser, onBack }) 
         collectionName: 'comments',
         constraints: [
             where('post_id', '==', post.id),
-            orderBy('created_at', 'desc'),
+            // orderBy('created_at', 'desc'), // Removed to avoid index issues, sorting client-side
         ],
         onChange: (changes) => {
             changes.forEach(change => {
@@ -216,7 +216,8 @@ const CommentView: React.FC<CommentViewProps> = ({ post, currentUser, onBack }) 
         try {
             const parentId = replyingTo ? replyingTo.id : undefined;
             const addedComment = await api.addComment(post.id, newComment, parentId);
-            setComments(prev => [...prev, addedComment]);
+            // setComments is handled by real-time listener to avoid duplicates
+            // setComments(prev => [...prev, addedComment]);
             setNewlyAddedCommentId(addedComment.id);
             setNewComment('');
             setReplyingTo(null);
@@ -280,7 +281,19 @@ const CommentView: React.FC<CommentViewProps> = ({ post, currentUser, onBack }) 
                             <span className="font-semibold mr-2 text-[13px]">{post.displayName}</span>
                             <span className="text-gray-200 font-normal">{post.text}</span>
                         </div>
-                        <p className="text-[11px] text-gray-500 mt-1.5 font-medium">{timeAgo(post.createdAt)}</p>
+
+                        {/* Post Image */}
+                        {(post.imageUrl || (post.images && post.images.length > 0)) && (
+                            <div className="mt-3 rounded-xl overflow-hidden border border-white/10 bg-[#121212]">
+                                <img
+                                    src={post.imageUrl || post.images![0]}
+                                    alt="Post"
+                                    className="w-full h-auto object-cover max-h-[500px]"
+                                />
+                            </div>
+                        )}
+
+                        <p className="text-[11px] text-gray-500 mt-2 font-medium">{timeAgo(post.createdAt)}</p>
                     </div>
                 </div>
 

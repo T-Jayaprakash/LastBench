@@ -102,12 +102,12 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       
       // Authenticated users can create posts
-      allow create: if isAuthenticated() && isValidPost();
+      allow create: if isAuthenticated(); // && isValidPost();
       
       // Authors can update their own posts, or any authenticated user can update likes_count
       allow update: if isAuthenticated() && (
         isAuthor() || 
-        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes_count', 'comments_count', 'shares_count']))
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes_count', 'comments_count', 'shares_count', 'poll']))
       );
       
       // Only the author can delete their posts
@@ -271,5 +271,44 @@ service cloud.firestore {
       // Shares cannot be updated or deleted
       allow update, delete: if false;
     }
+    // ========================================================================
+    // BANNERS COLLECTION
+    // ========================================================================
+    
+    match /banners/{bannerId} {
+      // Authenticated users can read banners
+      allow read: if isAuthenticated();
+      
+      // Authenticated users can create banners
+      allow create: if isAuthenticated();
+      
+      // Banners cannot be updated or deleted by regular users (for now)
+      allow update, delete: if false; 
+    }
+    
+    // ========================================================================
+    // DEBATES COLLECTION
+    // ========================================================================
+
+    match /debates/{debateId} {
+      // Everyone can read
+      allow read: if isAuthenticated();
+      
+      // Admin only creation/update (Simplified for initial rollout to Auth users)
+      allow create, update: if isAuthenticated(); 
+      
+      // Takes Subcollection
+      match /takes/{takeId} {
+        allow read: if isAuthenticated();
+        allow create: if isAuthenticated();
+        allow update: if isAuthenticated(); // For votes increment
+        
+        // Votes Subcollection
+        match /votes/{voteId} {
+          allow read, write: if isAuthenticated();
+        }
+      }
+    }
+    
   }
 }

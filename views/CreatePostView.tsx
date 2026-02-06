@@ -21,18 +21,22 @@ const BANNER_DURATIONS = [
 ];
 
 const CreatePostView: React.FC<CreatePostViewProps> = ({ onPostSuccess, onCancel }) => {
+    // Mode State
+    const [activeMode, setActiveMode] = useState<'post' | 'banner'>('post');
+
+    // Common State
     const [text, setText] = useState('');
     const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
     const [previews, setPreviews] = useState<string[]>([]);
+    const [isPosting, setIsPosting] = useState(false);
+
+    // Banner Specific State
+    const [bannerTitle, setBannerTitle] = useState('');
+    const [bannerDuration, setBannerDuration] = useState(1);
 
     // Poll State
     const [isPollMode, setIsPollMode] = useState(false);
     const [pollOptions, setPollOptions] = useState<string[]>(['', '']);
-
-    // Banner Option
-    const [isBanner, setIsBanner] = useState(false);
-    const [bannerDuration, setBannerDuration] = useState(1); // Default 1 day (24h)
-    const [showDurationPicker, setShowDurationPicker] = useState(false);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
     const { showToast, updateToast } = useToast();
@@ -75,20 +79,29 @@ const CreatePostView: React.FC<CreatePostViewProps> = ({ onPostSuccess, onCancel
         }
     };
 
-    const [isPosting, setIsPosting] = useState(false);
-
     const handleSubmit = async () => {
-        if (!text.trim() && selectedFiles.length === 0 && !isPollMode) return;
-
-        // Validate Poll
-        if (isPollMode) {
-            const validOptions = pollOptions.filter(o => o.trim().length > 0);
-            if (validOptions.length < 2) {
-                updateToast("Poll needs at least 2 options.", 'error');
+        // Validation
+        if (activeMode === 'post') {
+            if (!text.trim() && selectedFiles.length === 0 && !isPollMode) return;
+            if (isPollMode) {
+                const validOptions = pollOptions.filter(o => o.trim().length > 0);
+                if (validOptions.length < 2) {
+                    updateToast("Poll needs at least 2 options.", 'error');
+                    return;
+                }
+                if (!text.trim()) {
+                    updateToast("Please ask a question for your poll.", 'error');
+                    return;
+                }
+            }
+        } else {
+            // Banner Mode Validation
+            if (!bannerTitle.trim()) {
+                updateToast("Banner needs a title.", 'error');
                 return;
             }
-            if (!text.trim()) {
-                updateToast("Please ask a question for your poll.", 'error');
+            if (selectedFiles.length === 0) {
+                updateToast("Banner needs an image.", 'error');
                 return;
             }
         }
@@ -105,20 +118,22 @@ const CreatePostView: React.FC<CreatePostViewProps> = ({ onPostSuccess, onCancel
 
             // Calculate banner expiry date
             let bannerExpiresAt: Date | undefined;
-            if (isBanner) {
+            if (activeMode === 'banner') {
                 bannerExpiresAt = new Date();
                 bannerExpiresAt.setDate(bannerExpiresAt.getDate() + bannerDuration);
             }
 
             const postPayload: any = {
-                text,
+                text: text, // For banner, text is subtitle/description
                 images: uploadedUrls,
                 tags: [],
-                isBanner,
-                bannerExpiresAt: isBanner ? bannerExpiresAt : undefined
+                isBanner: activeMode === 'banner',
+                bannerExpiresAt: activeMode === 'banner' ? bannerExpiresAt : undefined,
+                title: activeMode === 'banner' ? bannerTitle : undefined,
+                hiddenFromFeed: activeMode === 'banner' // Exclusive banner
             };
 
-            if (isPollMode) {
+            if (isPollMode && activeMode === 'post') {
                 const validOptions = pollOptions.filter(o => o.trim().length > 0);
                 postPayload.poll = {
                     question: text,
@@ -149,6 +164,7 @@ const CreatePostView: React.FC<CreatePostViewProps> = ({ onPostSuccess, onCancel
 
     const charCount = text.length;
     const maxChars = 500;
+    const titleMaxChars = 50;
 
     const getDurationLabel = () => {
         const duration = BANNER_DURATIONS.find(d => d.value === bannerDuration);
@@ -157,52 +173,77 @@ const CreatePostView: React.FC<CreatePostViewProps> = ({ onPostSuccess, onCancel
 
     return (
         <div className="flex flex-col h-full bg-black animate-fade-in relative">
-            {/* Header - Instagram Style */}
-            <div className="flex items-center justify-between px-4 h-12 bg-black z-20">
-                <button
-                    onClick={onCancel}
-                    className="text-white p-1 -ml-1"
-                >
-                    <XMarkIcon className="w-7 h-7 stroke-[1.5px]" />
-                </button>
+            {/* Header - Mode Switcher */}
+            <div className="flex flex-col bg-black z-20 border-b border-white/5 pb-2">
+                <div className="flex items-center justify-between px-4 h-12">
+                    <button onClick={onCancel} className="text-white p-1 -ml-1">
+                        <XMarkIcon className="w-7 h-7 stroke-[1.5px]" />
+                    </button>
+                    <div className="flex-1"></div>
+                    <button
+                        onClick={handleSubmit}
+                        disabled={isPosting}
+                        className="text-[#0095F6] font-semibold text-[15px] disabled:opacity-30 disabled:cursor-not-allowed transition-opacity hover:text-[#E0F1FF]"
+                    >
+                        {isPosting ? 'Posting...' : (activeMode === 'banner' ? 'Create Banner' : 'Post')}
+                    </button>
+                </div>
 
-                {/* Empty Center */}
-                <div className="flex-1"></div>
-
-                <button
-                    onClick={handleSubmit}
-                    disabled={(!text.trim() && selectedFiles.length === 0 && !isPollMode) || isPosting}
-                    className="text-[#0095F6] font-semibold text-[15px] disabled:opacity-30 disabled:cursor-not-allowed transition-opacity hover:text-[#E0F1FF]"
-                >
-                    {isPosting ? 'Posting...' : 'Post'}
-                </button>
+                {/* Mode Tabs */}
+                <div className="flex px-4 gap-4">
+                    <button
+                        onClick={() => { setActiveMode('post'); setIsPollMode(false); }}
+                        className={`pb-2 text-sm font-semibold transition-colors relative ${activeMode === 'post' ? 'text-white' : 'text-gray-500'}`}
+                    >
+                        Regular Post
+                        {activeMode === 'post' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500 rounded-full" />}
+                    </button>
+                    <button
+                        onClick={() => { setActiveMode('banner'); setIsPollMode(false); }}
+                        className={`pb-2 text-sm font-semibold transition-colors relative ${activeMode === 'banner' ? 'text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-500' : 'text-gray-500'}`}
+                    >
+                        Create Banner 👑
+                        {activeMode === 'banner' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full" />}
+                    </button>
+                </div>
             </div>
 
             {/* Content Area */}
-            <div className="flex-grow flex flex-col relative px-4 overflow-y-auto no-scrollbar">
+            <div className="flex-grow flex flex-col relative px-4 overflow-y-auto no-scrollbar pt-4">
 
-                {/* User Info Row (Subtle) */}
-                <div className="flex items-center gap-3 pt-2 mb-2">
-                    <div className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center overflow-hidden">
-                        <div className="text-[10px] font-bold text-gray-400">?</div>
+                {/* Banner Mode Fields */}
+                {activeMode === 'banner' && (
+                    <div className="mb-4 animate-fade-in space-y-4">
+                        <div className="bg-gray-900/50 p-4 rounded-xl border border-yellow-500/20">
+                            <label className="block text-xs font-bold text-yellow-500 uppercase tracking-wider mb-2">Banner Headline</label>
+                            <input
+                                type="text"
+                                value={bannerTitle}
+                                onChange={(e) => setBannerTitle(e.target.value.slice(0, titleMaxChars))}
+                                placeholder="Catchy Headline (e.g. 'Campus Fest 2026')"
+                                className="w-full bg-transparent text-white text-xl font-bold placeholder:text-gray-600 focus:outline-none"
+                            />
+                            <div className="text-right text-[10px] text-gray-500 mt-1">{bannerTitle.length}/{titleMaxChars}</div>
+                        </div>
                     </div>
-                    <span className="text-gray-200 font-semibold text-[14px]">Anonymous Student</span>
-                </div>
+                )}
+
+                {/* User Info removed as requested */}
 
                 {/* Main Text Input */}
-                <div className="relative w-full min-h-[150px]">
+                <div className="relative w-full min-h-[100px]">
                     <textarea
-                        className="w-full h-full bg-transparent text-white text-[18px] placeholder:text-gray-500 resize-none focus:outline-none leading-relaxed"
-                        placeholder={isPollMode ? "Ask a poll question..." : "What's on your mind?"}
+                        className="w-full h-full bg-transparent text-white text-[16px] placeholder:text-gray-500 resize-none focus:outline-none leading-relaxed"
+                        placeholder={activeMode === 'banner' ? "Add a short description or subtitle..." : (isPollMode ? "Ask a poll question..." : "What's on your mind?")}
                         value={text}
                         onChange={(e) => setText(e.target.value.slice(0, maxChars))}
-                        autoFocus
-                        style={{ minHeight: '150px' }}
+                        autoFocus={activeMode === 'post'}
+                        style={{ minHeight: '100px' }}
                     />
                 </div>
 
-                {/* Poll Creator (Minimal) */}
-                {isPollMode && (
+                {/* Poll Creator (Only in Post Mode) */}
+                {isPollMode && activeMode === 'post' && (
                     <div className="mt-4 flex flex-col gap-3 animate-fade-in">
                         {pollOptions.map((option, index) => (
                             <div key={index} className="flex items-center gap-2">
@@ -228,55 +269,34 @@ const CreatePostView: React.FC<CreatePostViewProps> = ({ onPostSuccess, onCancel
                     </div>
                 )}
 
-                {/* Banner Option */}
-                <div className="mt-4 space-y-3">
-                    <div className="flex items-center gap-3">
-                        <input
-                            type="checkbox"
-                            id="isBanner"
-                            checked={isBanner}
-                            onChange={(e) => {
-                                setIsBanner(e.target.checked);
-                                if (e.target.checked) {
-                                    setShowDurationPicker(true);
-                                }
-                            }}
-                            className="w-5 h-5 rounded border-gray-600 bg-gray-800 text-blue-500 focus:ring-blue-500"
-                        />
-                        <label htmlFor="isBanner" className="text-gray-300 text-sm select-none flex-1">
-                            🎯 Promote to Banner (Ad/Event)
-                        </label>
-                    </div>
-
-                    {/* Banner Duration Picker */}
-                    {isBanner && (
-                        <div className="animate-fade-in">
-                            <div className="flex items-center gap-2 mb-2">
-                                <ClockIcon className="w-4 h-4 text-gray-400" />
-                                <span className="text-gray-400 text-sm">Banner expires after:</span>
-                            </div>
-                            <div className="flex flex-wrap gap-2">
-                                {BANNER_DURATIONS.map((duration) => (
-                                    <button
-                                        key={duration.value}
-                                        onClick={() => setBannerDuration(duration.value)}
-                                        className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${bannerDuration === duration.value
-                                                ? 'bg-[#0095F6] text-white'
-                                                : 'bg-[#262626] text-gray-300 hover:bg-[#363636]'
-                                            }`}
-                                    >
-                                        {duration.label}
-                                    </button>
-                                ))}
-                            </div>
-                            <p className="text-gray-500 text-xs mt-2">
-                                ⓘ Your banner will automatically be removed after {getDurationLabel()}. The post will still remain visible in the feed.
-                            </p>
+                {/* Banner Duration */}
+                {activeMode === 'banner' && (
+                    <div className="mt-4 animate-fade-in">
+                        <div className="flex items-center gap-2 mb-2">
+                            <ClockIcon className="w-4 h-4 text-gray-400" />
+                            <span className="text-gray-400 text-sm">Banner Duration</span>
                         </div>
-                    )}
-                </div>
+                        <div className="flex flex-wrap gap-2">
+                            {BANNER_DURATIONS.map((duration) => (
+                                <button
+                                    key={duration.value}
+                                    onClick={() => setBannerDuration(duration.value)}
+                                    className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${bannerDuration === duration.value
+                                        ? 'bg-yellow-600 text-white shadow-lg shadow-yellow-600/20'
+                                        : 'bg-[#262626] text-gray-300 hover:bg-[#363636]'
+                                        }`}
+                                >
+                                    {duration.label}
+                                </button>
+                            ))}
+                        </div>
+                        <p className="text-gray-500 text-xs mt-3 bg-blue-500/10 p-3 rounded-lg border border-blue-500/20">
+                            ℹ️ This banner will be displayed exclusively in the top carousel section for {getDurationLabel()}. It will NOT appear in the regular feed.
+                        </p>
+                    </div>
+                )}
 
-                {/* Image Previews (Horizontal Scroll) */}
+                {/* Image Previews */}
                 {previews.length > 0 && !isPollMode && (
                     <div className="mt-6 flex gap-3 overflow-x-auto pb-4 no-scrollbar">
                         {previews.map((src, index) => (
@@ -290,23 +310,15 @@ const CreatePostView: React.FC<CreatePostViewProps> = ({ onPostSuccess, onCancel
                                 </button>
                             </div>
                         ))}
-                        {previews.length < 10 && (
-                            <button
-                                onClick={() => fileInputRef.current?.click()}
-                                className="flex-shrink-0 w-32 aspect-[4/5] rounded-lg border border-dashed border-gray-700 flex items-center justify-center hover:bg-white/5 transition-colors"
-                            >
-                                <span className="text-2xl text-gray-600">+</span>
-                            </button>
-                        )}
                     </div>
                 )}
             </div>
 
-            {/* Bottom Toolbar (Keyboard Accessory Style) */}
+            {/* Bottom Toolbar */}
             <div className={`p-3 border-t border-white/10 bg-black flex items-center gap-4 ${isPollMode ? 'pb-6' : ''}`}>
                 <input
                     type="file"
-                    multiple
+                    multiple={activeMode === 'post'} // Banner usually 1 image, but allows multiple
                     accept="image/*"
                     ref={fileInputRef}
                     className="hidden"
@@ -316,35 +328,41 @@ const CreatePostView: React.FC<CreatePostViewProps> = ({ onPostSuccess, onCancel
                 {/* Photo Button */}
                 <button
                     onClick={() => {
+                        // In banner mode, clicking photo is primary action
                         setIsPollMode(false);
                         fileInputRef.current?.click();
                     }}
-                    className={`p-2 rounded-full transition-all ${!isPollMode && previews.length > 0 ? 'bg-[#0095F6] text-white' : 'text-gray-400 hover:text-white'}`}
+                    className={`p-2 rounded-full transition-all ${(!isPollMode && previews.length > 0) || activeMode === 'banner' ? 'text-blue-400' : 'text-gray-400 hover:text-white'}`}
                 >
-                    <PhotoIcon className="w-7 h-7 stroke-[1.5px]" />
+                    <div className="flex items-center gap-2">
+                        <PhotoIcon className="w-7 h-7 stroke-[1.5px]" />
+                        {activeMode === 'banner' && previews.length === 0 && <span className="text-sm font-semibold">Upload Image *</span>}
+                    </div>
                 </button>
 
-                {/* Poll Button */}
-                <button
-                    onClick={() => {
-                        if (previews.length > 0) {
-                            if (confirm('Switching to Poll mode will remove selected images. Continue?')) {
-                                setPreviews([]);
-                                setSelectedFiles([]);
-                                setIsPollMode(true);
+                {/* Poll Button - Hidden in Banner Mode */}
+                {activeMode === 'post' && (
+                    <button
+                        onClick={() => {
+                            if (previews.length > 0) {
+                                if (confirm('Switching to Poll mode will remove selected images. Continue?')) {
+                                    setPreviews([]);
+                                    setSelectedFiles([]);
+                                    setIsPollMode(true);
+                                }
+                            } else {
+                                setIsPollMode(!isPollMode);
                             }
-                        } else {
-                            setIsPollMode(!isPollMode);
-                        }
-                    }}
-                    className={`p-2 rounded-full transition-all ${isPollMode ? 'bg-[#0095F6] text-white' : 'text-gray-400 hover:text-white'}`}
-                >
-                    <ChartBarIcon className="w-7 h-7 stroke-[1.5px]" />
-                </button>
+                        }}
+                        className={`p-2 rounded-full transition-all ${isPollMode ? 'bg-[#0095F6] text-white' : 'text-gray-400 hover:text-white'}`}
+                    >
+                        <ChartBarIcon className="w-7 h-7 stroke-[1.5px]" />
+                    </button>
+                )}
 
                 <div className="flex-1"></div>
 
-                {/* Character Count (Only show if typed) */}
+                {/* Character Count */}
                 {text.length > 0 && (
                     <span className={`text-xs font-medium ${charCount > maxChars * 0.9 ? 'text-red-500' : 'text-gray-500'}`}>
                         {charCount}/{maxChars}

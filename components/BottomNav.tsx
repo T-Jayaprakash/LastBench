@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { HomeIcon, PlusCircleIcon, UserCircleIcon, HeartIcon, PlayIcon } from './Icons';
+import { HomeIcon, PlusCircleIcon, UserCircleIcon, HeartIcon, FireIcon } from './Icons';
 import { View } from '../types/index';
 import { t } from '../constants/locales';
 
@@ -16,7 +16,7 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentView, setView, userId, unr
 
     const navItems = [
         { view: 'home', icon: HomeIcon, label: t.home, badge: false },
-        { view: 'reels', icon: PlayIcon, label: 'Reels', badge: false },
+        { view: 'debate', icon: FireIcon, label: 'Debate', badge: false },
         { view: 'create', icon: PlusCircleIcon, label: t.create, badge: false },
         { view: 'notifications', icon: HeartIcon, label: 'Notifications', badge: unreadCount > 0 },
         { view: 'profile', icon: UserCircleIcon, label: t.profile, badge: false },

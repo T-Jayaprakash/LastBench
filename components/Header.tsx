@@ -14,7 +14,7 @@ const Header: React.FC<HeaderProps> = ({ onNotificationClick, user }) => {
                 {/* Left: Spacer / Brand Placeholder (Hidden) */}
                 <div className="w-8"></div>
 
-                {/* Center: Empty or maybe "For You" / "Following" later */}
+                {/* Center: Empty */}
                 <div className="flex-1"></div>
 
                 {/* Right: Placeholder for future icons (e.g. DMs) */}

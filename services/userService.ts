@@ -152,10 +152,31 @@ export const signUpUser = async (email: string, password: string): Promise<User 
 export const loginUser = async (email: string, password: string): Promise<User | null> => {
     try {
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
-        const user = await getUserProfile(userCredential.user.uid);
+        let user = await getUserProfile(userCredential.user.uid);
 
         if (!user) {
-            throw new Error('User profile not found. Please contact support or try signing up again.');
+            console.warn('⚠️ User profile not found, auto-healing...');
+            // Auto-create profile if missing (Migration/Recovery logic)
+            const randomNum = Math.floor(Math.random() * 900) + 100;
+            const studentUsername = `#Student${randomNum}`;
+            const timestamp = Date.now();
+
+            const newProfile = {
+                anon_id: studentUsername,
+                display_name: studentUsername,
+                avatar_color: getRandomElement(AVATAR_COLORS),
+                has_onboarded: false,
+                email: email,
+                college: '',
+                department: '',
+                created_at: timestamp,
+                updated_at: timestamp,
+            };
+
+            const profileRef = dbRef(rtdb, `profiles/${userCredential.user.uid}`);
+            await set(profileRef, newProfile);
+
+            user = mapDataToUser(newProfile, userCredential.user.uid);
         }
 
         // Cache the user

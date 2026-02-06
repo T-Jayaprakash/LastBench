@@ -52,8 +52,8 @@ const AdvertisingBanner: React.FC<AdvertisingBannerProps> = ({ onPostClick }) =>
         ...bannerPosts.map(p => ({
             id: p.id,
             imageUrl: p.imageUrl || (p.images && p.images[0]) || '',
-            title: p.text.slice(0, 50) + (p.text.length > 50 ? '...' : ''),
-            subtitle: p.displayName,
+            title: p.title || p.text.slice(0, 50) + (p.text.length > 50 ? '...' : ''),
+            subtitle: p.title ? p.text : p.displayName,
             isDefault: false,
             post: p
         }))
@@ -133,9 +133,9 @@ const AdvertisingBanner: React.FC<AdvertisingBannerProps> = ({ onPostClick }) =>
         <div
             ref={containerRef}
             className="w-full relative bg-gray-900 border-b border-white/10 aspect-[16/9] overflow-hidden group"
-            onTouchStart={handleTouchStart}
-            onTouchMove={handleTouchMove}
-            onTouchEnd={handleTouchEnd}
+            onTouchStart={(e) => { e.stopPropagation(); handleTouchStart(e); }}
+            onTouchMove={(e) => { e.stopPropagation(); handleTouchMove(e); }}
+            onTouchEnd={(e) => { e.stopPropagation(); handleTouchEnd(); }}
         >
             {/* Slides Container */}
             <div
@@ -192,8 +192,8 @@ const AdvertisingBanner: React.FC<AdvertisingBannerProps> = ({ onPostClick }) =>
                                 goToSlide(i);
                             }}
                             className={`rounded-full transition-all duration-300 ${i === currentSlide
-                                    ? 'w-4 h-1.5 bg-white'
-                                    : 'w-1.5 h-1.5 bg-white/40 hover:bg-white/60'
+                                ? 'w-4 h-1.5 bg-white'
+                                : 'w-1.5 h-1.5 bg-white/40 hover:bg-white/60'
                                 }`}
                             aria-label={`Go to slide ${i + 1}`}
                         />

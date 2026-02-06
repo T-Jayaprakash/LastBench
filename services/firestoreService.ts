@@ -32,6 +32,7 @@ import {
     startAfter,
     increment,
     serverTimestamp,
+    setDoc,
     Timestamp,
     onSnapshot,
     writeBatch,
@@ -41,7 +42,7 @@ import {
     runTransaction
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { Post, Comment, PostTag, User } from '../types/index';
+import { Post, Comment, PostTag, User, Debate, DebateTake } from '../types/index';
 import { getCurrentUser } from './userService';
 
 // ============================================================================
@@ -57,6 +58,8 @@ const COLLECTIONS = {
     REPORTS: 'reports',
     BOOKMARKS: 'bookmarks',
     SHARES: 'shares',
+    BANNERS: 'banners',
+    DEBATES: 'debates',
 } as const;
 
 const PAGE_SIZE = 20;
@@ -112,7 +115,9 @@ export const mapDocToPost = (doc: QueryDocumentSnapshot<DocumentData>): Post => 
         isLiked: false, // Will be set separately after checking interactions
         isBanner: data.is_banner || false,
         bannerExpiresAt: data.banner_expires_at?.toDate ? data.banner_expires_at.toDate() : (data.banner_expires_at ? new Date(data.banner_expires_at) : undefined),
-        poll: data.poll
+        poll: data.poll,
+        title: data.title,
+        hiddenFromFeed: data.hidden_from_feed || false
     };
 };
 
@@ -352,16 +357,40 @@ export const getPostById = async (postId: string): Promise<Post | null> => {
  */
 export const getBannerPosts = async (): Promise<Post[]> => {
     try {
-        const postsRef = collection(db, COLLECTIONS.POSTS);
+        const bannersRef = collection(db, COLLECTIONS.BANNERS);
         const q = query(
-            postsRef,
-            where('is_banner', '==', true),
+            bannersRef,
             orderBy('created_at', 'desc'),
-            limit(20) // Fetch more to account for expired ones
+            limit(20)
         );
 
         const snapshot = await getDocs(q);
-        const allBanners = snapshot.docs.map(mapDocToPost);
+        const postIds = snapshot.docs.map(doc => doc.data().post_id);
+
+        if (postIds.length === 0) return [];
+
+        // Fetch actual posts
+        // We can reuse getPostsByIds logic if we extract it, or do a batch fetch
+        // Firestore 'in' query limit is 10.
+
+        // Simple sequential fetch for now to reuse getPostById logic (handling likes etc)
+        // Or cleaner: batch query
+        const postsRef = collection(db, COLLECTIONS.POSTS);
+        const postsLayout: Post[] = [];
+
+        // Split into chunks of 10
+        for (let i = 0; i < postIds.length; i += 10) {
+            const chunk = postIds.slice(i, i + 10);
+            if (chunk.length === 0) continue;
+
+            const postsQ = query(postsRef, where('__name__', 'in', chunk));
+            const postsSnap = await getDocs(postsQ);
+            postsSnap.docs.forEach(d => {
+                postsLayout.push(mapDocToPost(d));
+            });
+        }
+
+        const allBanners = postsLayout;
 
         // Filter out expired banners
         const now = new Date();
@@ -481,7 +510,7 @@ export const getLikedPosts = async (anonId: string): Promise<Post[]> => {
 /**
  * Create a new post
  */
-export const createPost = async (newPostData: { text: string; images?: string[]; tags: PostTag[]; poll?: any; isBanner?: boolean; bannerExpiresAt?: Date }): Promise<Post | null> => {
+export const createPost = async (newPostData: { text: string; images?: string[]; tags: PostTag[]; poll?: any; isBanner?: boolean; bannerExpiresAt?: Date; title?: string; hiddenFromFeed?: boolean }): Promise<Post | null> => {
     try {
         const user = await getCurrentUser();
         if (!user) {
@@ -506,6 +535,8 @@ export const createPost = async (newPostData: { text: string; images?: string[];
             comments_count: 0,
             created_at: serverTimestamp(),
             is_banner: newPostData.isBanner || false,
+            title: newPostData.title || null,
+            hidden_from_feed: newPostData.hiddenFromFeed || false,
         };
 
         // Add banner expiry if this is a banner post
@@ -530,6 +561,21 @@ export const createPost = async (newPostData: { text: string; images?: string[];
         const docRef = await addDoc(postsRef, postData);
 
         console.log('✅ Post created with ID:', docRef.id);
+
+        // If banner, add to Banners collection
+        if (newPostData.isBanner) {
+            try {
+                const bannersRef = collection(db, COLLECTIONS.BANNERS);
+                await addDoc(bannersRef, {
+                    post_id: docRef.id,
+                    created_at: serverTimestamp(),
+                    expires_at: postData.banner_expires_at || null
+                });
+                console.log('✅ Banner entry created');
+            } catch (bannerErr) {
+                console.error('Failed to create banner entry', bannerErr);
+            }
+        }
 
         // Return the created post
         const createdPost: Post = {
@@ -630,31 +676,12 @@ export const deletePost = async (postId: string): Promise<boolean> => {
             return false;
         }
 
-        // Delete related data in batch
-        const batch = writeBatch(db);
-
-        // Delete the post
-        batch.delete(postRef);
-
-        // Delete related comments
-        const commentsRef = collection(db, COLLECTIONS.COMMENTS);
-        const commentsQuery = query(commentsRef, where('post_id', '==', postId));
-        const commentsSnap = await getDocs(commentsQuery);
-        commentsSnap.docs.forEach(doc => batch.delete(doc.ref));
-
-        // Delete related interactions
-        const interactionsRef = collection(db, COLLECTIONS.INTERACTIONS);
-        const interactionsQuery = query(interactionsRef, where('post_id', '==', postId));
-        const interactionsSnap = await getDocs(interactionsQuery);
-        interactionsSnap.docs.forEach(doc => batch.delete(doc.ref));
-
-        // Delete related reports
-        const reportsRef = collection(db, COLLECTIONS.REPORTS);
-        const reportsQuery = query(reportsRef, where('post_id', '==', postId));
-        const reportsSnap = await getDocs(reportsQuery);
-        reportsSnap.docs.forEach(doc => batch.delete(doc.ref));
-
-        await batch.commit();
+        // JUST delete the post. 
+        // We cannot delete comments/interactions/reports client-side because of security rules 
+        // (we can't delete other people's comments). 
+        // Orphaned comments are fine (they won't be loaded if post doesn't exist).
+        await deleteDoc(postRef);
+        console.log('✅ Post deleted');
 
         console.log('✅ Post and related data deleted');
         return true;
@@ -759,19 +786,15 @@ export const toggleLike = async (postId: string): Promise<number> => {
 
         // Check for existing like
         const interactionsRef = collection(db, COLLECTIONS.INTERACTIONS);
-        const existingQuery = query(
-            interactionsRef,
-            where('user_id', '==', user.userId),
-            where('post_id', '==', postId),
-            where('type', '==', 'like')
-        );
-
-        const existingSnap = await getDocs(existingQuery);
+        // Deterministic ID check to prevent duplicates
+        const interactionId = `like_${user.userId}_${postId}`;
+        const interactionRef = doc(db, COLLECTIONS.INTERACTIONS, interactionId);
+        const interactionDoc = await getDoc(interactionRef);
         const postRef = doc(db, COLLECTIONS.POSTS, postId);
 
         let newCount = 0;
 
-        if (!existingSnap.empty) {
+        if (interactionDoc.exists()) {
             // UNLIKE - Remove interaction
             console.log('👎 Removing like...');
 
@@ -783,7 +806,7 @@ export const toggleLike = async (postId: string): Promise<number> => {
                 newCount = Math.max(0, currentCount - 1);
 
                 // Delete the interaction
-                transaction.delete(existingSnap.docs[0].ref);
+                transaction.delete(interactionRef);
 
                 // Decrement count
                 transaction.update(postRef, { likes_count: newCount });
@@ -801,9 +824,8 @@ export const toggleLike = async (postId: string): Promise<number> => {
                 const currentCount = postDoc.data().likes_count || 0;
                 newCount = currentCount + 1;
 
-                // Add the interaction
-                const newInteractionRef = doc(collection(db, COLLECTIONS.INTERACTIONS));
-                transaction.set(newInteractionRef, {
+                // Add the interaction with deterministic ID
+                transaction.set(interactionRef, {
                     user_id: user.userId,
                     post_id: postId,
                     type: 'like',
@@ -816,16 +838,7 @@ export const toggleLike = async (postId: string): Promise<number> => {
 
             console.log(`✅ Like successful. New count: ${newCount}`);
 
-            // Trigger notification (fire and forget)
-            fetch('/api/send-push', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    type: 'like',
-                    actorUserId: user.userId,
-                    postId: postId
-                })
-            }).catch(e => console.error('Push trigger failed', e));
+            // Notification trigger removed (Handled by Cloud Functions)
         }
 
         return newCount;
@@ -905,6 +918,8 @@ export const addComment = async (postId: string, text: string, parentId?: string
     });
 
     // Trigger notification
+    // Trigger notification (Handled by Cloud Functions now - comment out to avoid duplicates)
+    /*
     fetch('/api/send-push', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -915,6 +930,7 @@ export const addComment = async (postId: string, text: string, parentId?: string
             data: { text: text }
         })
     }).catch(e => console.error('Push trigger failed', e));
+    */
 
     // Return the created comment
     return {
@@ -1168,8 +1184,8 @@ export const toggleBookmark = async (postId: string): Promise<boolean> => {
             return false; // Not bookmarked
         } else {
             // Add bookmark
-            await addDoc(collection(db, COLLECTIONS.BOOKMARKS), {
-                user_id: user!.anonId,
+            await setDoc(bookmarkRef, {
+                user_id: user!.userId,
                 post_id: postId,
                 created_at: serverTimestamp(),
             });
@@ -1447,6 +1463,148 @@ export const voteOnPoll = async (postId: string, optionId: string): Promise<bool
         if (error.message.includes('already voted')) {
             alert('You have already voted!');
         }
+        return false;
+    }
+};
+
+// ============================================================================
+// DEBATES
+// ============================================================================
+
+/**
+ * Get the active debate for a college
+ */
+export const getActiveDebate = async (college: string): Promise<Debate | null> => {
+    try {
+        const q = query(
+            collection(db, COLLECTIONS.DEBATES),
+            where('college', '==', college),
+            where('isActive', '==', true),
+            limit(1)
+        );
+        const snapshot = await getDocs(q);
+        
+        if (snapshot.empty) return null;
+        
+        const data = snapshot.docs[0].data();
+        return {
+            id: snapshot.docs[0].id,
+            topic: data.topic,
+            college: data.college,
+            createdBy: data.createdBy,
+            isActive: data.isActive,
+            createdAt: data.created_at?.toDate?.() || new Date(),
+            totalTakes: data.totalTakes || 0
+        };
+    } catch (e) {
+        console.error('getActiveDebate error:', e);
+        return null;
+    }
+};
+
+/**
+ * Create a new debate (Admin only)
+ */
+export const createDebate = async (topic: string, college: string): Promise<string> => {
+    try {
+        const user = await getCurrentUser();
+        if (!user) throw new Error("Must be logged in");
+
+        // Deactivate active debates for this college
+        const activeQ = query(
+            collection(db, COLLECTIONS.DEBATES),
+            where('college', '==', college),
+            where('isActive', '==', true)
+        );
+        const activeSnap = await getDocs(activeQ);
+        
+        const batch = writeBatch(db);
+        activeSnap.forEach(d => {
+            batch.update(d.ref, { isActive: false });
+        });
+        
+        const newDebateRef = doc(collection(db, COLLECTIONS.DEBATES));
+        batch.set(newDebateRef, {
+            topic,
+            college,
+            createdBy: user.userId,
+            isActive: true,
+            created_at: serverTimestamp(),
+            totalTakes: 0,
+            search_keywords: topic.toLowerCase().split(' ')
+        });
+        
+        await batch.commit();
+        return newDebateRef.id;
+    } catch (e) {
+        console.error('createDebate error:', e);
+        throw e;
+    }
+};
+
+/**
+ * Get takes for a debate
+ */
+export const getDebateTakes = async (debateId: string): Promise<DebateTake[]> => {
+    try {
+        const takesRef = collection(db, COLLECTIONS.DEBATES, debateId, 'takes');
+        // Order by votes or recent? Let's do recent first
+        const q = query(takesRef, orderBy('created_at', 'desc'), limit(50));
+        const snapshot = await getDocs(q);
+        
+        return snapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+                id: doc.id,
+                debateId,
+                authorAnonId: data.author_anon_id,
+                authorAvatarColor: data.author_avatar_color,
+                text: data.text,
+                type: data.type || 'text',
+                upvotes: data.upvotes || 0,
+                downvotes: data.downvotes || 0,
+                createdAt: data.created_at?.toDate?.() || new Date(),
+            };
+        });
+    } catch (e) {
+        console.error('getDebateTakes error:', e);
+        return [];
+    }
+};
+
+/**
+ * Post a take
+ */
+export const postDebateTake = async (debateId: string, text: string, type: 'text' | 'emoji' = 'text'): Promise<boolean> => {
+    try {
+        const user = await getCurrentUser();
+        if (!user) throw new Error("Must be logged in");
+
+        const takesRef = collection(db, COLLECTIONS.DEBATES, debateId, 'takes');
+        const debateRef = doc(db, COLLECTIONS.DEBATES, debateId);
+        
+        const batch = writeBatch(db);
+        const newTakeRef = doc(takesRef);
+        
+        batch.set(newTakeRef, {
+            author_id: user.userId, // Secure but internal
+            author_anon_id: user.anonId,
+            author_avatar_color: user.avatarColor,
+            text,
+            type,
+            upvotes: 0,
+            downvotes: 0,
+            created_at: serverTimestamp()
+        });
+        
+        batch.update(debateRef, {
+            totalTakes: increment(1)
+        });
+        
+        await batch.commit();
+        return true;
+    } catch (e) {
+        console.error('postDebateTake error:', e);
         return false;
     }
 };

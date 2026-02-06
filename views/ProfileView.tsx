@@ -4,7 +4,7 @@ import { Post, User, Theme } from '../types/index';
 import * as api from '../services/api';
 import { uploadAvatar } from '../services/userService';
 import { t } from '../constants/locales';
-import { PencilIcon, CameraIcon, TrashIcon, CogIcon, ArrowRightOnRectangleIcon, ArrowLeftIcon, GridIcon, XMarkIcon } from '../components/Icons';
+import { PencilIcon, CameraIcon, TrashIcon, CogIcon, ArrowRightOnRectangleIcon, ArrowLeftIcon, GridIcon, XMarkIcon, BookmarkIcon } from '../components/Icons';
 import { DEPARTMENTS, AVATAR_COLORS } from '../constants/config';
 import PostCard from '../components/PostCard';
 import { useToast } from '../components/Toast';
@@ -21,9 +21,13 @@ interface ProfileViewProps {
 
 const ProfileView: React.FC<ProfileViewProps> = ({ user, onUpdateUser, theme, toggleTheme, onSettingsClick, onViewImages }) => {
     const [posts, setPosts] = useState<Post[]>([]);
+    const [savedPosts, setSavedPosts] = useState<Post[]>([]);
     const [loading, setLoading] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
+
+    // activeTab: 'posts' (grid) or 'saved'
+    const [activeTab, setActiveTab] = useState<'posts' | 'saved'>('posts');
 
     // Grid/Feed View toggle
     const [viewMode, setViewMode] = useState<'grid' | 'feed'>('grid');
@@ -68,10 +72,28 @@ const ProfileView: React.FC<ProfileViewProps> = ({ user, onUpdateUser, theme, to
         // Using real-time subscription for profile posts
         const unsubscribe = api.subscribeToUserPosts(user.userId, (newPosts) => {
             setPosts(newPosts);
-            setLoading(false);
+            if (activeTab === 'posts') setLoading(false);
         });
         return () => unsubscribe();
     }, [user]);
+
+    useEffect(() => {
+        if (!user || activeTab !== 'saved') return;
+
+        const fetchSaved = async () => {
+            setLoading(true);
+            try {
+                const fetchedSaved = await api.getSavedPosts(user.userId);
+                setSavedPosts(fetchedSaved);
+            } catch (err) {
+                console.error("Failed to fetch saved posts", err);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchSaved();
+    }, [user, activeTab]);
 
     // Scroll to selected post when opening feed view
     useEffect(() => {
@@ -168,6 +190,8 @@ const ProfileView: React.FC<ProfileViewProps> = ({ user, onUpdateUser, theme, to
     const currentAvatarColor = isEditing ? editedColor : user.avatarColor;
     const currentDisplayName = isEditing ? editedName : user.displayName;
 
+    const displayPosts = activeTab === 'posts' ? posts : savedPosts;
+
     // Full-screen Feed View when a post is clicked
     if (viewMode === 'feed' && selectedPostIndex !== null) {
         return (
@@ -180,7 +204,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({ user, onUpdateUser, theme, to
                     >
                         <XMarkIcon className="w-6 h-6" />
                     </button>
-                    <h1 className="text-white font-semibold text-base">Posts</h1>
+                    <h1 className="text-white font-semibold text-base">{activeTab === 'saved' ? 'Saved Posts' : 'Posts'}</h1>
                     <div className="w-10" />
                 </div>
 
@@ -189,7 +213,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({ user, onUpdateUser, theme, to
                     ref={feedScrollRef}
                     className="h-[calc(100vh-48px)] overflow-y-auto no-scrollbar"
                 >
-                    {posts.map((post, index) => (
+                    {displayPosts.map((post, index) => (
                         <div key={post.id} data-post-index={index}>
                             <PostCard
                                 post={post}
@@ -320,8 +344,17 @@ const ProfileView: React.FC<ProfileViewProps> = ({ user, onUpdateUser, theme, to
                 {/* Tab Bar - Grid Icon */}
                 {!isEditing && (
                     <div className="flex items-center justify-center border-b border-white/5">
-                        <button className="flex-1 py-3 flex items-center justify-center border-b-2 border-white">
-                            <GridIcon className="w-6 h-6 text-white" />
+                        <button
+                            onClick={() => setActiveTab('posts')}
+                            className={`flex-1 py-3 flex items-center justify-center border-b-[1px] ${activeTab === 'posts' ? 'border-white text-white' : 'border-transparent text-gray-500'}`}
+                        >
+                            <GridIcon className="w-6 h-6" />
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('saved')}
+                            className={`flex-1 py-3 flex items-center justify-center border-b-[1px] ${activeTab === 'saved' ? 'border-white text-white' : 'border-transparent text-gray-500'}`}
+                        >
+                            <BookmarkIcon className="w-6 h-6" />
                         </button>
                     </div>
                 )}
@@ -333,9 +366,9 @@ const ProfileView: React.FC<ProfileViewProps> = ({ user, onUpdateUser, theme, to
                             <div className="flex justify-center p-12">
                                 <div className="w-6 h-6 border-2 border-white/20 border-t-white rounded-full animate-spin" />
                             </div>
-                        ) : posts.length > 0 ? (
+                        ) : displayPosts.length > 0 ? (
                             <div className="grid grid-cols-3 gap-0.5">
-                                {posts.map((post, index) => (
+                                {displayPosts.map((post, index) => (
                                     <button
                                         key={post.id}
                                         onClick={() => handleGridPostClick(index)}
@@ -395,7 +428,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({ user, onUpdateUser, theme, to
                                 <div className="w-16 h-16 rounded-full border-2 border-white/10 flex items-center justify-center mb-4">
                                     <CameraIcon className="w-8 h-8 text-gray-600" />
                                 </div>
-                                <h3 className="text-white font-bold text-lg">No Posts Yet</h3>
+                                <h3 className="text-white font-bold text-lg">No {activeTab === 'saved' ? 'Saved' : ''} Posts Yet</h3>
                             </div>
                         )}
                     </div>
@@ -404,5 +437,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({ user, onUpdateUser, theme, to
         </div>
     );
 };
+
+
 
 export default ProfileView;

@@ -111,7 +111,7 @@ const Feed: React.FC<FeedProps> = ({
 
     return (
         <div className={containerStyle}>
-            {posts.map((post, index) => (
+            {posts.filter(p => !p.hiddenFromFeed).map((post, index) => (
                 <div key={post.id} ref={index === posts.length - 1 ? lastPostRef : null} className={itemStyle}>
                     <PostCard
                         post={post}

@@ -1,7 +1,30 @@
 
 export type PostTag = 'Confess' | 'Roast' | 'Meme' | 'Love' | 'Dept' | 'Other';
 
-export type View = 'home' | 'reels' | 'create' | 'profile' | 'notifications' | 'saved' | 'settings';
+export type View = 'home' | 'reels' | 'create' | 'profile' | 'notifications' | 'saved' | 'settings' | 'debate';
+
+export interface Debate {
+    id: string;
+    topic: string;
+    college: string;
+    createdBy: string;
+    isActive: boolean;
+    createdAt: Date;
+    totalTakes: number;
+}
+
+export interface DebateTake {
+    id: string;
+    debateId: string;
+    authorAnonId: string;
+    authorAvatarColor: string;
+    text: string;
+    type: 'text' | 'emoji';
+    upvotes: number;
+    downvotes: number;
+    userVote?: 'up' | 'down' | null;
+    createdAt: Date;
+}
 
 export type Theme = 'light' | 'dark';
 
@@ -27,6 +50,8 @@ export interface Post {
     isBookmarked?: boolean; // Whether the current user has saved this post
     isBanner?: boolean; // Whether this post is promoted to the banner
     bannerExpiresAt?: Date; // When the banner promotion expires (default 24h)
+    title?: string;
+    hiddenFromFeed?: boolean;
     poll?: Poll;
 }
 

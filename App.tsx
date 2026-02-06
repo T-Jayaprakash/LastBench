@@ -29,6 +29,7 @@ const NotificationsView = lazy(() => import('./views/NotificationsView'));
 const UpdateModal = lazy(() => import('./components/UpdateModal'));
 const SettingsView = lazy(() => import('./views/SettingsView'));
 const ReelsView = lazy(() => import('./views/ReelsView'));
+const DebateView = lazy(() => import('./views/DebateView'));
 
 
 const SplashScreen = ({ isFinished }: { isFinished: boolean }) => {
@@ -64,7 +65,7 @@ const SplashScreen = ({ isFinished }: { isFinished: boolean }) => {
 };
 
 // Define swipeable views for navigation
-const SWIPEABLE_VIEWS: View[] = ['home', 'reels', 'notifications', 'profile'];
+const SWIPEABLE_VIEWS: View[] = ['home', 'debate', 'notifications', 'profile'];
 
 const AppContent: React.FC = () => {
     const [isLoading, setIsLoading] = useState(true);
@@ -475,14 +476,9 @@ const AppContent: React.FC = () => {
                             onShareSuccess={handleShareSuccess}
                         />
 
-                        {/* Reels */}
+                        {/* Debate (was Reels) */}
                         <Suspense fallback={null}>
-                            <ReelsView
-                                user={user}
-                                onCommentClick={handleShowComments}
-                                onOptionsClick={handleShowOptions}
-                                onViewImages={handleViewImages}
-                            />
+                            <DebateView user={user} />
                         </Suspense>
 
                         {/* Notifications */}

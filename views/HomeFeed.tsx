@@ -31,8 +31,9 @@ const HomeFeed: React.FC<HomeFeedProps> = ({
         <div className="flex flex-col h-full bg-black relative">
             <Header user={user} onNotificationClick={onNotificationClick} />
 
-            <div className="h-full w-full pt-0 overflow-y-auto no-scrollbar" id="feed-container">
+            <div className="h-full w-full pt-12 overflow-y-auto no-scrollbar" id="feed-container">
                 <AdvertisingBanner onPostClick={onCommentClick} />
+                <div className="h-4 bg-black"></div>
                 <Feed
                     user={user}
                     onCommentClick={onCommentClick}
