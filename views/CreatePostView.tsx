@@ -21,6 +21,9 @@ const CreatePostView: React.FC<CreatePostViewProps> = ({ onPostSuccess, onCancel
     const [isPollMode, setIsPollMode] = useState(false);
     const [pollOptions, setPollOptions] = useState<string[]>(['', '']);
 
+    // Banner Option
+    const [isBanner, setIsBanner] = useState(false);
+
     const fileInputRef = useRef<HTMLInputElement>(null);
     const { showToast, updateToast } = useToast();
 
@@ -67,6 +70,8 @@ const CreatePostView: React.FC<CreatePostViewProps> = ({ onPostSuccess, onCancel
         }
     };
 
+    const [isPosting, setIsPosting] = useState(false);
+
     const handleSubmit = async () => {
         if (!text.trim() && selectedFiles.length === 0 && !isPollMode) return;
 
@@ -83,12 +88,9 @@ const CreatePostView: React.FC<CreatePostViewProps> = ({ onPostSuccess, onCancel
             }
         }
 
-        onCancel();
+        setIsPosting(true);
 
         try {
-            // Optimistic setup (simplified for brevity, focusing on logic)
-            // ... (keeping existing optimistic logic logic is complex with Polls, skipping strictly for brevity unless critical)
-
             let uploadedUrls: string[] = [];
             if (selectedFiles.length > 0) {
                 const uploadPromises = selectedFiles.map(file => userService.uploadPostImage(file));
@@ -100,6 +102,7 @@ const CreatePostView: React.FC<CreatePostViewProps> = ({ onPostSuccess, onCancel
                 text,
                 images: uploadedUrls,
                 tags: [],
+                isBanner
             };
 
             if (isPollMode) {
@@ -127,6 +130,7 @@ const CreatePostView: React.FC<CreatePostViewProps> = ({ onPostSuccess, onCancel
         } catch (e: any) {
             console.error("Post creation failed", e);
             updateToast("Post failed. Try again.", 'error');
+            setIsPosting(false);
         }
     };
 
@@ -149,10 +153,10 @@ const CreatePostView: React.FC<CreatePostViewProps> = ({ onPostSuccess, onCancel
 
                 <button
                     onClick={handleSubmit}
-                    disabled={(!text.trim() && selectedFiles.length === 0 && !isPollMode)}
+                    disabled={(!text.trim() && selectedFiles.length === 0 && !isPollMode) || isPosting}
                     className="text-[#0095F6] font-semibold text-[15px] disabled:opacity-30 disabled:cursor-not-allowed transition-opacity hover:text-[#E0F1FF]"
                 >
-                    Post
+                    {isPosting ? 'Posting...' : 'Post'}
                 </button>
             </div>
 
@@ -206,6 +210,20 @@ const CreatePostView: React.FC<CreatePostViewProps> = ({ onPostSuccess, onCancel
                         )}
                     </div>
                 )}
+
+                {/* Banner Option */}
+                <div className="mt-4 flex items-center gap-2">
+                    <input
+                        type="checkbox"
+                        id="isBanner"
+                        checked={isBanner}
+                        onChange={(e) => setIsBanner(e.target.checked)}
+                        className="w-4 h-4 rounded border-gray-600 bg-gray-800 text-blue-500 focus:ring-blue-500"
+                    />
+                    <label htmlFor="isBanner" className="text-gray-400 text-sm select-none">
+                        Promote to Banner (Ad/Event)
+                    </label>
+                </div>
 
                 {/* Image Previews (Horizontal Scroll) */}
                 {previews.length > 0 && !isPollMode && (

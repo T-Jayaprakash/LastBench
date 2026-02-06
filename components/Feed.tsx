@@ -1,3 +1,4 @@
+
 import React, { useRef, useCallback } from 'react';
 import { useFeed } from '../src/hooks/useFeed';
 import PostCard from './PostCard';
@@ -11,6 +12,7 @@ interface FeedProps {
     newPost?: Post | null;
     deletedPostId?: string | null;
     updatedPost?: Post | null;
+    variant?: 'default' | 'fullscreen';
 }
 
 const Feed: React.FC<FeedProps> = ({
@@ -20,7 +22,8 @@ const Feed: React.FC<FeedProps> = ({
     onViewImages,
     newPost,
     deletedPostId,
-    updatedPost
+    updatedPost,
+    variant = 'default'
 }) => {
     const { posts, setPosts, loading, hasMore, loadMore, refresh, refreshing } = useFeed(user?.college, user?.userId);
     const observer = useRef<IntersectionObserver | null>(null);
@@ -98,10 +101,18 @@ const Feed: React.FC<FeedProps> = ({
         }
     };
 
+    const containerStyle = variant === 'fullscreen'
+        ? "h-full w-full overflow-y-scroll snap-y snap-mandatory no-scrollbar bg-black"
+        : "flex flex-col w-full pb-20";
+
+    const itemStyle = variant === 'fullscreen'
+        ? "w-full h-full snap-start"
+        : "";
+
     return (
-        <div className="flex flex-col w-full pb-20">
+        <div className={containerStyle}>
             {posts.map((post, index) => (
-                <div key={post.id} ref={index === posts.length - 1 ? lastPostRef : null}>
+                <div key={post.id} ref={index === posts.length - 1 ? lastPostRef : null} className={itemStyle}>
                     <PostCard
                         post={post}
                         index={index}
@@ -110,18 +121,19 @@ const Feed: React.FC<FeedProps> = ({
                         onOptionsClick={onOptionsClick}
                         onImageClick={onViewImages}
                         onVote={handleVote}
+                        variant={variant}
                     />
                 </div>
             ))}
 
             {loading && (
-                <div className="p-4 flex justify-center">
+                <div className={`p-4 flex justify-center ${variant === 'fullscreen' ? 'snap-start' : ''}`}>
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-white"></div>
                 </div>
             )}
 
             {!hasMore && posts.length > 0 && (
-                <div className="p-8 text-center text-gray-500 text-sm">
+                <div className={`p-8 text-center text-gray-500 text-sm ${variant === 'fullscreen' ? 'snap-start' : ''}`}>
                     You're all caught up! 🎉
                 </div>
             )}
@@ -137,3 +149,4 @@ const Feed: React.FC<FeedProps> = ({
 };
 
 export default Feed;
+

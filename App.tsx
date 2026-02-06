@@ -25,7 +25,8 @@ const EditPostModal = lazy(() => import('./components/EditPostModal'));
 const ImageViewer = lazy(() => import('./components/ImageViewer'));
 const NotificationsView = lazy(() => import('./views/NotificationsView'));
 const UpdateModal = lazy(() => import('./components/UpdateModal'));
-
+const SettingsView = lazy(() => import('./views/SettingsView'));
+const ReelsView = lazy(() => import('./views/ReelsView'));
 
 
 const SplashScreen = ({ isFinished }: { isFinished: boolean }) => {
@@ -422,6 +423,15 @@ const AppContent: React.FC = () => {
                     />
                 </div>
 
+                {currentView === 'reels' && (
+                    <ReelsView
+                        user={user}
+                        onCommentClick={handleShowComments}
+                        onOptionsClick={handleShowOptions}
+                        onViewImages={handleViewImages}
+                    />
+                )}
+
                 {currentView === 'create' && (
                     <CreatePostView
                         onPostSuccess={handlePostSuccess}
@@ -435,8 +445,9 @@ const AppContent: React.FC = () => {
                         onUpdateUser={handleUpdateUser}
                         theme={theme}
                         toggleTheme={toggleTheme}
-                        onLogout={handleLogout}
+                        onSettingsClick={() => navigateTo('settings')}
                         onViewImages={handleViewImages}
+                        onLogout={handleLogout}
                     />
                 )}
 
@@ -445,10 +456,22 @@ const AppContent: React.FC = () => {
                         <NotificationsView userId={user.userId} onBack={() => window.history.back()} />
                     </Suspense>
                 )}
+
+                {currentView === 'settings' && (
+                    <Suspense fallback={null}>
+                        <SettingsView
+                            user={user}
+                            onBack={() => window.history.back()}
+                            onLogout={handleLogout}
+                            theme={theme}
+                            toggleTheme={toggleTheme}
+                        />
+                    </Suspense>
+                )}
             </main>
 
-            {currentView !== 'create' && currentView !== 'notifications' && (
-                <BottomNav currentView={currentView} setView={navigateTo} />
+            {currentView !== 'create' && currentView !== 'notifications' && currentView !== 'settings' && (
+                <BottomNav currentView={currentView} setView={navigateTo} userId={user.userId} />
             )}
 
             <Suspense fallback={null}>

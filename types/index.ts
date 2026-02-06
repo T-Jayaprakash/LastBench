@@ -1,7 +1,7 @@
 
 export type PostTag = 'Confess' | 'Roast' | 'Meme' | 'Love' | 'Dept' | 'Other';
 
-export type View = 'home' | 'create' | 'profile' | 'notifications' | 'saved';
+export type View = 'home' | 'reels' | 'create' | 'profile' | 'notifications' | 'saved' | 'settings';
 
 export type Theme = 'light' | 'dark';
 
@@ -25,6 +25,7 @@ export interface Post {
     trendingScore: number;
     isLiked?: boolean; // Whether the current user has liked this post
     isBookmarked?: boolean; // Whether the current user has saved this post
+    isBanner?: boolean; // Whether this post is promoted to the banner
     poll?: Poll;
 }
 

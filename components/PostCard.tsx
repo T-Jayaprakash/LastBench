@@ -11,6 +11,8 @@ interface PostCardProps {
     onCommentClick: (post: Post) => void;
     onOptionsClick: (post: Post) => void;
     onImageClick: (images: string[], index: number) => void;
+    onVote?: (postId: string, optionId: string) => void;
+    variant?: 'default' | 'fullscreen';
 }
 
 const PostCard: React.FC<PostCardProps> = ({
@@ -20,12 +22,14 @@ const PostCard: React.FC<PostCardProps> = ({
     onCommentClick,
     onOptionsClick,
     onImageClick,
-    onVote
+    onVote,
+    variant = 'default'
 }) => {
     const [isLiked, setIsLiked] = useState(post.isLiked);
     const [likesCount, setLikesCount] = useState(post.likesCount);
     const [activeImageIndex, setActiveImageIndex] = useState(0);
     const [showBigHeart, setShowBigHeart] = useState(false);
+    const [commentsCount, setCommentsCount] = useState(post.commentsCount);
 
     const handleDoubleTap = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -39,7 +43,17 @@ const PostCard: React.FC<PostCardProps> = ({
     React.useEffect(() => {
         setIsLiked(post.isLiked);
         setLikesCount(post.likesCount);
-    }, [post.isLiked, post.likesCount]);
+        setCommentsCount(post.commentsCount);
+    }, [post.isLiked, post.likesCount, post.commentsCount]);
+
+    // Real-time updates
+    React.useEffect(() => {
+        const unsubscribe = api.subscribeToPostUpdates(post.id, (newLikes, newComments) => {
+            setLikesCount(newLikes);
+            setCommentsCount(newComments);
+        });
+        return () => unsubscribe();
+    }, [post.id]);
 
     const handleLike = async () => {
         if (!currentUser) return;
@@ -111,6 +125,170 @@ const PostCard: React.FC<PostCardProps> = ({
 
     const hasImages = post.images && post.images.length > 0;
 
+    // =========================================================================
+    // FULLSCREEN / REELS VARIANT
+    // =========================================================================
+    if (variant === 'fullscreen') {
+        return (
+            <div className="h-full w-full snap-start relative bg-black overflow-hidden flex flex-col box-border">
+                {/* 1. MEDIA LAYER */}
+                <div
+                    className="absolute inset-0 z-0 flex items-center justify-center bg-[#121212]"
+                    onDoubleClick={handleDoubleTap}
+                >
+                    {hasImages ? (
+                        // Fullscreen Image Carousel
+                        <div className="relative w-full h-full">
+                            <div
+                                className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar w-full h-full"
+                                onScroll={(e) => {
+                                    const scrollLeft = e.currentTarget.scrollLeft;
+                                    const width = e.currentTarget.offsetWidth;
+                                    const index = Math.round(scrollLeft / width);
+                                    setActiveImageIndex(index);
+                                }}
+                            >
+                                {post.images!.map((img, i) => (
+                                    <div key={i} className="w-full min-w-full h-full snap-center bg-black relative">
+                                        {/* Main Image - Contain for memes/text images */}
+                                        <img src={img} alt="" className="w-full h-full object-contain relative z-10" />
+
+                                        {/* Background Blur for aesthetic fill */}
+                                        <div className="absolute inset-0 z-0 opacity-50 blur-3xl scale-110">
+                                            <img src={img} className="w-full h-full object-cover" />
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* Dots Indicator */}
+                            {post.images!.length > 1 && (
+                                <div className="absolute bottom-24 left-0 right-0 flex justify-center gap-1.5 pointer-events-none z-20">
+                                    {post.images!.map((_, i) => (
+                                        <div
+                                            key={i}
+                                            className={`rounded-full transition-all duration-300 ${i === activeImageIndex ? 'w-1.5 h-1.5 bg-white' : 'w-1.5 h-1.5 bg-white/40'}`}
+                                        />
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        // Centered Text Post
+                        <div className="px-8 w-full max-w-md">
+                            <p className="text-white text-2xl font-bold text-center leading-relaxed font-sans">
+                                {renderTextWithLinks(post.text)}
+                            </p>
+                        </div>
+                    )}
+                </div>
+
+                {/* Big Heart Animation */}
+                {showBigHeart && (
+                    <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none animate-bounce-in">
+                        <HeartIcon className="w-28 h-28 text-white fill-white drop-shadow-2xl" />
+                    </div>
+                )}
+
+                {/* Gradient Overlay for Text Readability */}
+                <div className="absolute inset-0 z-10 pointer-events-none bg-gradient-to-b from-black/20 via-transparent to-black/90"></div>
+
+                {/* 2. RIGHT ACTION BAR (Vertical Stack) */}
+                <div className="absolute right-4 bottom-24 z-30 flex flex-col items-center gap-6">
+                    {/* Like */}
+                    <div className="flex flex-col items-center gap-1">
+                        <button onClick={handleLike} className="active:scale-90 transition-transform">
+                            <HeartIcon className={`w-8 h-8 stroke-[2px] drop-shadow-sm ${isLiked ? 'fill-[#FF3040] text-[#FF3040]' : 'text-white'}`} />
+                        </button>
+                        <span className="text-white text-xs font-medium drop-shadow-md">{likesCount}</span>
+                    </div>
+
+                    {/* Comment */}
+                    <div className="flex flex-col items-center gap-1">
+                        <button onClick={() => onCommentClick(post)} className="active:scale-90 transition-transform">
+                            <ChatBubbleOvalLeftIcon className="w-8 h-8 stroke-[2px] text-white drop-shadow-sm -rotate-90 transform scale-x-[-1]" />
+                        </button>
+                        <span className="text-white text-xs font-medium drop-shadow-md">{commentsCount}</span>
+                    </div>
+
+                    {/* Share */}
+                    <button onClick={handleShare} className="active:scale-90 transition-transform">
+                        <ShareIcon className="w-7 h-7 stroke-[2px] text-white drop-shadow-sm" />
+                    </button>
+
+                    {/* Options */}
+                    <button onClick={() => onOptionsClick(post)} className="active:scale-90 transition-transform mt-2">
+                        <ThreeDotsIcon className="w-6 h-6 text-white drop-shadow-sm rotate-90" />
+                    </button>
+                </div>
+
+                {/* 3. BOTTOM INFO LAYER */}
+                <div className="absolute left-4 bottom-24 right-16 z-30 flex flex-col gap-3 pointer-events-auto">
+
+                    {/* Author Row */}
+                    <div className="flex items-center gap-2">
+                        <div
+                            className="w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-xs ring-1 ring-white/20 overflow-hidden bg-black/40 backdrop-blur-sm"
+                            style={{ backgroundColor: post.authorAvatarUrl ? 'transparent' : (post.authorAvatarColor || '#262626') }}
+                        >
+                            {post.authorAvatarUrl ? (
+                                <img src={post.authorAvatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                            ) : (
+                                (post.displayName || 'A').charAt(0).toUpperCase()
+                            )}
+                        </div>
+                        <div className="flex flex-col shadow-black">
+                            <span className="font-semibold text-white text-[14px] drop-shadow-md">{post.displayName}</span>
+                            <span className="text-white/70 text-[11px] drop-shadow-md">{post.college || 'Campus'} • {timeAgo(post.createdAt)}</span>
+                        </div>
+                    </div>
+
+                    {/* Caption (Visible even if text post, but truncated maybe? Or rely on center text for text posts) */}
+                    {hasImages && post.text && (
+                        <div className="max-h-20 overflow-y-auto no-scrollbar mask-image-b">
+                            <p className="text-white text-[14px] leading-snug drop-shadow-md">
+                                {renderTextWithLinks(post.text)}
+                            </p>
+                        </div>
+                    )}
+
+                    {/* Poll Overlay */}
+                    {post.poll && (
+                        <div className="bg-black/40 backdrop-blur-md rounded-xl p-3 border border-white/10 w-full max-w-[85%]">
+                            <p className="text-white text-sm font-semibold mb-2 drop-shadow-md">{post.poll.question}</p>
+                            <div className="flex flex-col gap-2">
+                                {post.poll.options.map((option) => {
+                                    const percentage = post.poll!.totalVotes > 0
+                                        ? Math.round((option.voteCount / post.poll!.totalVotes) * 100)
+                                        : 0;
+                                    const isVoted = post.poll!.userVotedOptionId === option.id;
+                                    return (
+                                        <button
+                                            key={option.id}
+                                            onClick={() => handleVote(option.id)}
+                                            disabled={!!post.poll!.userVotedOptionId}
+                                            className="relative w-full h-8 rounded-lg overflow-hidden bg-white/10 border border-white/20 active:scale-[0.98]"
+                                        >
+                                            <div className={`absolute top-0 left-0 h-full transition-all duration-500 ${isVoted ? 'bg-white/40' : 'bg-white/20'}`} style={{ width: `${percentage}%` }} />
+                                            <div className="absolute inset-0 flex items-center justify-between px-3 z-10">
+                                                <span className="text-xs font-medium text-white drop-shadow-sm">{option.text}</span>
+                                                <span className="text-xs text-white/80 font-bold drop-shadow-sm">{percentage}%</span>
+                                            </div>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                            <div className="text-[10px] text-white/50 mt-1 pl-1">{post.poll.totalVotes} votes</div>
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    }
+
+    // =========================================================================
+    // DEFAULT VARIANT (Profile List, etc.)
+    // =========================================================================
     return (
         <div className="w-full bg-black border-b border-white/5 py-0 mb-0">
             {/* Header */}
@@ -134,7 +312,6 @@ const PostCard: React.FC<PostCardProps> = ({
                             <span className="text-[11px] text-gray-500">•</span>
                             <span className="text-[11px] text-gray-500">{timeAgo(post.createdAt)}</span>
                         </div>
-                        {/* Optional location/dept if needed, but keeping minimal for parity */}
                     </div>
                 </div>
                 <button onClick={() => onOptionsClick(post)} className="text-white p-1 hover:opacity-70 transition-opacity">
@@ -303,20 +480,14 @@ const PostCard: React.FC<PostCardProps> = ({
                 )}
 
                 {/* View Comments */}
-                {post.commentsCount > 0 && (
+                {commentsCount > 0 && (
                     <button
                         onClick={() => onCommentClick(post)}
                         className="text-gray-500 text-[13px] font-normal cursor-pointer active:opacity-70 block mt-1"
                     >
-                        View all {post.commentsCount} comments
+                        View all {commentsCount} comments
                     </button>
                 )}
-
-                {/* Add Comment Input (Visual Only) */}
-                {/* <div className="flex items-center gap-2 mt-2">
-                    <div className="w-6 h-6 rounded-full bg-gray-800" />
-                    <span className="text-gray-500 text-[13px]">Add a comment...</span>
-                </div> */}
             </div>
         </div>
     );

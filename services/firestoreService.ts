@@ -107,11 +107,99 @@ export const mapDocToPost = (doc: QueryDocumentSnapshot<DocumentData>): Post => 
         tags: data.tags || [],
         likesCount: data.likes_count || 0,
         commentsCount: data.comments_count || 0,
-        createdAt: data.created_at?.toDate?.() || new Date(data.created_at) || new Date(),
+        createdAt: data.created_at?.toDate ? data.created_at.toDate() : (data.created_at ? new Date(data.created_at) : new Date()),
         trendingScore: (data.likes_count || 0) + ((data.comments_count || 0) * 2),
         isLiked: false, // Will be set separately after checking interactions
         poll: data.poll
     };
+};
+
+// ============================================================================
+// REAL-TIME SUBSCRIPTIONS
+// ============================================================================
+
+/**
+ * Subscribe to posts for a college (Real-time Feed)
+ */
+export const subscribeToPosts = (limitCount = PAGE_SIZE, callback: (posts: Post[]) => void): (() => void) => {
+    try {
+        const user = JSON.parse(localStorage.getItem('user_cache_v2') || '{}');
+        const userCollege = user.college || '';
+
+        if (!userCollege) {
+            console.warn('subscribeToPosts: No college found in cache, waiting for auth...');
+            return () => { };
+        }
+
+        const postsRef = collection(db, COLLECTIONS.POSTS);
+        const q = query(
+            postsRef,
+            where('college', '==', userCollege),
+            orderBy('created_at', 'desc'),
+            limit(limitCount)
+        );
+
+        console.log(`🔌 Subscribing to feed for ${userCollege}`);
+
+        const unsubscribe = onSnapshot(q, async (snapshot) => {
+            const posts = snapshot.docs.map(mapDocToPost);
+
+            // We need to check likes for these posts efficiently
+            if (posts.length > 0 && user.userId) {
+                try {
+                    const postIds = posts.map(p => p.id);
+                    // This is async inside a sync callback, but we need to update the posts
+                    // We'll do it and then call the callback again with updated like status
+                    // ideally we should have a better structure, but this works for "near real-time"
+                    const likedPostIds = await getUserLikedPostIds(user.userId, postIds);
+                    posts.forEach(post => {
+                        post.isLiked = likedPostIds.has(post.id);
+                    });
+                } catch (e) {
+                    console.error("Failed to fetch likes for realtime feed", e);
+                }
+            }
+
+            callback(posts);
+        }, (error) => {
+            console.error("🔴 Feed subscription error:", error);
+        });
+
+        return unsubscribe;
+    } catch (e) {
+        console.error("subscribeToPosts setup error:", e);
+        return () => { };
+    }
+};
+
+/**
+ * Subscribe to a user's posts (Profile Real-time)
+ */
+export const subscribeToUserPosts = (userId: string, callback: (posts: Post[]) => void): (() => void) => {
+    if (!userId) return () => { };
+
+    const postsRef = collection(db, COLLECTIONS.POSTS);
+    const q = query(
+        postsRef,
+        where('author_id', '==', userId),
+        orderBy('created_at', 'desc'),
+        limit(50)
+    );
+
+    console.log(`🔌 Subscribing to user posts: ${userId}`);
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+        const posts = snapshot.docs.map(mapDocToPost);
+        // Likes are less critical for own profile, but we can assume 'false' or check if needed
+        // For own profile, we usually know we haven't liked our own post? actually we can.
+        // For simplicity, we skip async like check here to avoid flickering loop, 
+        // or we could implement it if critical.
+        callback(posts);
+    }, (error) => {
+        console.error("🔴 User posts subscription error:", error);
+    });
+
+    return unsubscribe;
 };
 
 /**
@@ -257,6 +345,27 @@ export const getPostById = async (postId: string): Promise<Post | null> => {
 };
 
 /**
+ * Get banner posts (Ads/Events)
+ */
+export const getBannerPosts = async (): Promise<Post[]> => {
+    try {
+        const postsRef = collection(db, COLLECTIONS.POSTS);
+        const q = query(
+            postsRef,
+            where('is_banner', '==', true),
+            orderBy('created_at', 'desc'),
+            limit(10)
+        );
+
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(mapDocToPost);
+    } catch (e) {
+        console.error("getBannerPosts error:", e);
+        return [];
+    }
+};
+
+/**
  * Get posts by a specific user (by their anon ID)
  */
 /**
@@ -349,7 +458,7 @@ export const getLikedPosts = async (anonId: string): Promise<Post[]> => {
 /**
  * Create a new post
  */
-export const createPost = async (newPostData: { text: string; images?: string[]; tags: PostTag[]; poll?: any }): Promise<Post | null> => {
+export const createPost = async (newPostData: { text: string; images?: string[]; tags: PostTag[]; poll?: any; isBanner?: boolean }): Promise<Post | null> => {
     try {
         const user = await getCurrentUser();
         if (!user) {
@@ -373,6 +482,7 @@ export const createPost = async (newPostData: { text: string; images?: string[];
             likes_count: 0,
             comments_count: 0,
             created_at: serverTimestamp(),
+            is_banner: newPostData.isBanner || false,
         };
 
         // Add images if provided
@@ -411,7 +521,8 @@ export const createPost = async (newPostData: { text: string; images?: string[];
             createdAt: new Date(),
             trendingScore: 0,
             isLiked: false,
-            poll: newPostData.poll
+            poll: newPostData.poll,
+            isBanner: newPostData.isBanner
         };
 
         return createdPost;

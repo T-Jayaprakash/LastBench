@@ -39,15 +39,15 @@ service cloud.firestore {
       return isAuthenticated() && resource.data.author_id == request.auth.uid;
     }
     
-    // Get user's profile data
-    function getUserProfile() {
-      return get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data;
-    }
+    // Get user's profile data (Unused - Client side filter)
+    // function getUserProfile() {
+    //   return get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data;
+    // }
     
-    // Check if user belongs to the same college as the post
-    function isSameCollege(postCollege) {
-      return isAuthenticated() && getUserProfile().college == postCollege;
-    }
+    // Check if user belongs to the same college as the post (Unused)
+    // function isSameCollege(postCollege) {
+    //   return isAuthenticated() && getUserProfile().college == postCollege;
+    // }
     
     // Validate post data
     function isValidPost() {

@@ -1,6 +1,7 @@
 import React from 'react';
 import Header from '../components/Header';
 import Feed from '../components/Feed';
+import AdvertisingBanner from '../components/AdvertisingBanner';
 import { User, Post, PostTag } from '../types';
 
 interface HomeFeedProps {
@@ -30,7 +31,8 @@ const HomeFeed: React.FC<HomeFeedProps> = ({
         <div className="flex flex-col h-full bg-black relative">
             <Header user={user} onNotificationClick={onNotificationClick} />
 
-            <div className="flex-1 overflow-y-auto pt-12 no-scrollbar scroll-smooth" id="feed-container">
+            <div className="h-full w-full pt-0" id="feed-container">
+                <AdvertisingBanner onPostClick={onCommentClick} />
                 <Feed
                     user={user}
                     onCommentClick={onCommentClick}
@@ -39,6 +41,7 @@ const HomeFeed: React.FC<HomeFeedProps> = ({
                     newPost={newPost}
                     deletedPostId={deletedPostId}
                     updatedPost={updatedPost}
+                    variant="default"
                 />
             </div>
         </div>

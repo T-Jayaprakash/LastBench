@@ -19,6 +19,7 @@ export {
     getUserPosts,
     getLikedPosts,
     getCachedPosts,
+    getBannerPosts,
 
     // Posts - Write
     createPost,
@@ -53,6 +54,8 @@ export {
     // Realtime
     subscribeToNewPosts,
     subscribeToPostUpdates,
+    subscribeToPosts,
+    subscribeToUserPosts,
 
     // Utilities
     mapDocToPost as mapDbPostToPost,

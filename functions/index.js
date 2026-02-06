@@ -3,10 +3,11 @@
  * Handles notifications for Likes, Comments, and Trending posts.
  */
 
-const { onDocumentCreated } = require("firebase-functions/v2/firestore");
+const { onDocumentCreated, onDocumentUpdated } = require("firebase-functions/v2/firestore");
 const { setGlobalOptions } = require("firebase-functions/v2");
 const admin = require("firebase-admin");
 const logger = require("firebase-functions/logger");
+const { onSchedule } = require("firebase-functions/v2/scheduler");
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -148,20 +149,8 @@ exports.onCommentCreated = onDocumentCreated("comments/{commentId}", async (even
  * 3. TRENDING NOTIFICATION
  * Trigger: When post likes count updates.
  * Logic: If likes > 10, 50, 100, etc., notify owner.
- * Note: Requires tracking 'lastNotifiedThreshold' to avoid spam.
  */
 const TRENDING_THRESHOLDS = [10, 50, 100, 500, 1000];
-
-exports.onPostUpdated = onDocumentCreated("posts/{postId}", async (event) => {
-  // Note: onDocumentWritten or onDocumentUpdated is better for updates,
-  // but onDocumentCreated is safer for new deployments to avoid triggers on existing data mass-updates if we mess up.
-  // However, for trending we DO need updates.
-  // Let's use written but check 'before' and 'after'.
-  // Changing to onDocumentUpdated logic manually here is hard without the specific trigger.
-  // Let's switch to onDocumentUpdated.
-});
-
-const { onDocumentUpdated } = require("firebase-functions/v2/firestore");
 
 exports.checkTrending = onDocumentUpdated("posts/{postId}", async (event) => {
   const before = event.data.before.data();
@@ -186,10 +175,6 @@ exports.checkTrending = onDocumentUpdated("posts/{postId}", async (event) => {
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         isRead: false,
       };
-
-      // Avoid duplicates (optional check, but Firestore writes are cheap enough here)
-      // Ideally we store 'lastTrendingNotification' on the post, but I'll stick to a simple fire-and-forget for now
-      // or we could check generic notifications.
 
       await db.collection("users").doc(authorId).collection("notifications").add(notificationData);
 
@@ -226,8 +211,6 @@ async function sendPushNotification(userId, payload) {
     const tokens = tokensSnap.docs.map((doc) => doc.id);
 
     // Payload for Web Push and Mobile
-    // Note: 'notification' key handles background system tray on some platforms,
-    // but for better control in SW, we use 'data' mostly.
     const message = {
       notification: {
         title: payload.title,
@@ -327,8 +310,6 @@ exports.onNewTokenRegistered = onDocumentCreated("users/{userId}/fcmTokens/{toke
  * Trigger: Scheduled every day at 7:00 PM (Asia/Kolkata time approx).
  * Logic: Send a generic "Check out what's happening" message to all users.
  */
-const { onSchedule } = require("firebase-functions/v2/scheduler");
-
 exports.scheduledPeakNotification = onSchedule({
   schedule: "0 19 * * *", // 7 PM daily
   timeZone: "Asia/Kolkata",
@@ -378,13 +359,96 @@ exports.scheduledPeakNotification = onSchedule({
       const response = await messaging.sendEachForMulticast(batchPayload);
       successCount += response.successCount;
       failureCount += response.failureCount;
-
-      // Optional: Cleanup invalid tokens from response
-      // (Omitted for brevity in scheduled task, relies on sendPushNotification helper usually)
     }
 
     logger.info(`Peak notification sent. Success: ${successCount}, Failed: ${failureCount}`);
   } catch (error) {
     logger.error("Error in scheduledPeakNotification:", error);
+  }
+});
+
+/**
+ * 6. PROFILE UPDATE PROPAGATION
+ * Trigger: When a user profile is updated.
+ * Logic: Update author details in all their posts and comments.
+ */
+exports.onUserProfileUpdate = onDocumentUpdated("profiles/{userId}", async (event) => {
+  const before = event.data.before.data();
+  const after = event.data.after.data();
+
+  // Check if relevant fields changed
+  if (
+    before.display_name === after.display_name &&
+    before.avatar_color === after.avatar_color &&
+    before.avatar_url === after.avatar_url &&
+    before.department === after.department
+  ) {
+    return;
+  }
+
+  const userId = event.params.userId;
+  const updates = {
+    display_name: after.display_name,
+    avatar_color: after.avatar_color,
+    avatar_url: after.avatar_url || null,
+  };
+
+  logger.info(`Propagating profile update for user ${userId}`);
+
+  try {
+    const batchSize = 400; // Batch limit is 500
+    const postsRef = db.collection("posts");
+    const commentsRef = db.collection("comments");
+
+    // 1. Update Posts
+    const postsQuery = postsRef.where("author_id", "==", userId);
+    const postsSnap = await postsQuery.get();
+
+    if (!postsSnap.empty) {
+      const batches = [];
+      let currentBatch = db.batch();
+      let count = 0;
+
+      postsSnap.docs.forEach((doc) => {
+        currentBatch.update(doc.ref, updates);
+        count++;
+        if (count >= batchSize) {
+          batches.push(currentBatch.commit());
+          currentBatch = db.batch();
+          count = 0;
+        }
+      });
+      if (count > 0) batches.push(currentBatch.commit());
+
+      await Promise.all(batches);
+      logger.info(`Updated ${postsSnap.size} posts for user ${userId}`);
+    }
+
+    // 2. Update Comments
+    const commentsQuery = commentsRef.where("author_id", "==", userId);
+    const commentsSnap = await commentsQuery.get();
+
+    if (!commentsSnap.empty) {
+      const batches = [];
+      let currentBatch = db.batch();
+      let count = 0;
+
+      commentsSnap.docs.forEach((doc) => {
+        currentBatch.update(doc.ref, updates);
+        count++;
+        if (count >= batchSize) {
+          batches.push(currentBatch.commit());
+          currentBatch = db.batch();
+          count = 0;
+        }
+      });
+      if (count > 0) batches.push(currentBatch.commit());
+
+      await Promise.all(batches);
+      logger.info(`Updated ${commentsSnap.size} comments for user ${userId}`);
+    }
+
+  } catch (error) {
+    logger.error("Error propagating profile update:", error);
   }
 });

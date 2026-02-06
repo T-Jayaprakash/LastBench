@@ -7,17 +7,19 @@ import { t } from '../constants/locales';
 import { PencilIcon, CameraIcon, TrashIcon, CogIcon, ArrowRightOnRectangleIcon, ArrowLeftIcon, GridIcon } from '../components/Icons';
 import { DEPARTMENTS, AVATAR_COLORS } from '../constants/config';
 import PostCard from '../components/PostCard';
+import { useToast } from '../components/Toast';
 
 interface ProfileViewProps {
     user: User | null;
     onUpdateUser: (user: User) => void;
     theme: Theme;
     toggleTheme: () => void;
-    onLogout: () => void;
+    onSettingsClick: () => void; // Changed from onLogout
+    onLogout?: () => void; // Kept optional for safety if needed
     onViewImages: (images: string[], index: number) => void;
 }
 
-const ProfileView: React.FC<ProfileViewProps> = ({ user, onUpdateUser, theme, toggleTheme, onLogout, onViewImages }) => {
+const ProfileView: React.FC<ProfileViewProps> = ({ user, onUpdateUser, theme, toggleTheme, onSettingsClick, onViewImages }) => {
     const [posts, setPosts] = useState<Post[]>([]);
     const [loading, setLoading] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
@@ -33,6 +35,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({ user, onUpdateUser, theme, to
     const [isOtherDept, setIsOtherDept] = useState(false);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const { showToast } = useToast();
 
     useEffect(() => {
         if (user && isEditing) {
@@ -55,19 +58,14 @@ const ProfileView: React.FC<ProfileViewProps> = ({ user, onUpdateUser, theme, to
     }, [user, isEditing]);
 
     useEffect(() => {
-        const fetchPosts = async () => {
-            if (!user) return;
-            setLoading(true);
-            try {
-                const fetchedPosts = await api.getUserPosts(user.userId);
-                setPosts(fetchedPosts);
-            } catch (error) {
-                console.error("Failed to fetch profile posts:", error);
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchPosts();
+        if (!user) return;
+        setLoading(true);
+        // Using real-time subscription for profile posts
+        const unsubscribe = api.subscribeToUserPosts(user.userId, (newPosts) => {
+            setPosts(newPosts);
+            setLoading(false);
+        });
+        return () => unsubscribe();
     }, [user]);
 
     if (!user) {
@@ -77,6 +75,27 @@ const ProfileView: React.FC<ProfileViewProps> = ({ user, onUpdateUser, theme, to
             </div>
         );
     }
+
+    const handleShareProfile = async () => {
+        const profileUrl = `${window.location.origin}/?user=${user.userId}`;
+        const shareText = `Check out ${user.displayName}'s profile on Genfess!`;
+
+        if (navigator.share) {
+            try {
+                await navigator.share({
+                    title: 'Genfess Profile',
+                    text: shareText,
+                    url: profileUrl,
+                });
+                showToast('Profile shared successfully!', 'success');
+            } catch (err) {
+                console.error('Share failed', err);
+            }
+        } else {
+            navigator.clipboard.writeText(`${shareText}\n${profileUrl}`);
+            showToast('Profile link copied to clipboard!', 'success');
+        }
+    };
 
     const handleSave = () => {
         const finalDept = isOtherDept ? customDept.trim() : editedDept;
@@ -132,7 +151,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({ user, onUpdateUser, theme, to
                 </button>
                 <div className="flex-1"></div>
                 <button
-                    onClick={onLogout}
+                    onClick={onSettingsClick}
                     className="p-1 -mr-1 text-white hover:opacity-70"
                 >
                     <CogIcon className="w-6 h-6 stroke-[2px]" />
@@ -189,24 +208,6 @@ const ProfileView: React.FC<ProfileViewProps> = ({ user, onUpdateUser, theme, to
                         {user.department}
                     </p>
 
-                    {/* Stats Row */}
-                    {!isEditing && (
-                        <div className="flex items-center gap-8 mt-5 mb-5">
-                            <div className="flex flex-col items-center">
-                                <span className="text-white font-bold text-[18px]">{posts.length}</span>
-                                <span className="text-gray-500 text-[13px] font-normal">posts</span>
-                            </div>
-                            <div className="flex flex-col items-center">
-                                <span className="text-white font-bold text-[18px]">0</span>
-                                <span className="text-gray-500 text-[13px] font-normal">followers</span>
-                            </div>
-                            <div className="flex flex-col items-center">
-                                <span className="text-white font-bold text-[18px]">0</span>
-                                <span className="text-gray-500 text-[13px] font-normal">following</span>
-                            </div>
-                        </div>
-                    )}
-
                     {/* Action Buttons */}
                     <div className="w-full mt-2 flex gap-2">
                         {isEditing ? (
@@ -234,7 +235,10 @@ const ProfileView: React.FC<ProfileViewProps> = ({ user, onUpdateUser, theme, to
                         )}
 
                         {!isEditing && (
-                            <button className="bg-[#262626] text-white p-1.5 rounded-lg active:scale-95 transition-transform">
+                            <button
+                                onClick={handleShareProfile}
+                                className="bg-[#262626] text-white p-1.5 rounded-lg active:scale-95 transition-transform"
+                            >
                                 <span className="text-xs px-1">Share profile</span>
                             </button>
                         )}
