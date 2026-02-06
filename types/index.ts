@@ -26,6 +26,7 @@ export interface Post {
     isLiked?: boolean; // Whether the current user has liked this post
     isBookmarked?: boolean; // Whether the current user has saved this post
     isBanner?: boolean; // Whether this post is promoted to the banner
+    bannerExpiresAt?: Date; // When the banner promotion expires (default 24h)
     poll?: Poll;
 }
 

@@ -132,10 +132,12 @@ const OnboardingView: React.FC<OnboardingViewProps> = ({ user, onComplete }) => 
 
     const isFormValid = displayName.trim().length >= 3 && college && department;
 
-    // Full Screen Selector Overlay
+    // Full Screen Selector Overlay - Dark Red Theme
     if (selectorMode) {
         return (
-            <div className="fixed inset-0 z-50 bg-black flex flex-col animate-fade-in">
+            <div className="fixed inset-0 z-50 flex flex-col animate-fade-in"
+                style={{ backgroundColor: '#4a0404' }}
+            >
                 {/* Search Header */}
                 <div className="flex items-center px-4 py-3 border-b border-white/10 gap-3">
                     <button
@@ -151,7 +153,7 @@ const OnboardingView: React.FC<OnboardingViewProps> = ({ user, onComplete }) => 
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             placeholder={selectorMode === 'COLLEGE' ? "Search for your college" : "Search department"}
-                            className="w-full bg-transparent text-white text-[16px] placeholder:text-gray-500 font-normal outline-none border-none p-0"
+                            className="w-full bg-transparent text-white text-[16px] placeholder:text-white/40 font-normal outline-none border-none p-0"
                         />
                     </div>
                 </div>
@@ -159,22 +161,22 @@ const OnboardingView: React.FC<OnboardingViewProps> = ({ user, onComplete }) => 
                 {/* Results List */}
                 <div className="flex-1 overflow-y-auto no-scrollbar">
                     {filteredItems.length === 0 ? (
-                        <div className="px-5 py-4 text-gray-500 text-sm">No results found for "{searchQuery}"</div>
+                        <div className="px-5 py-4 text-white/50 text-sm">No results found for "{searchQuery}"</div>
                     ) : (
                         filteredItems.map((item) => (
                             <button
                                 key={item}
                                 onClick={() => handleSelect(item)}
-                                className="w-full text-left px-5 py-3.5 border-b border-white/5 active:bg-white/5 flex items-center justify-between group transition-colors"
+                                className="w-full text-left px-5 py-3.5 border-b border-white/5 active:bg-white/10 flex items-center justify-between group transition-colors"
                             >
                                 <div>
                                     <div className="text-white text-[15px] font-medium leading-snug">{item}</div>
-                                    <div className="text-gray-500 text-[12px] leading-snug">
+                                    <div className="text-white/50 text-[12px] leading-snug">
                                         {selectorMode === 'COLLEGE' ? getLocationSubtitle(item) : 'Academic Department'}
                                     </div>
                                 </div>
                                 {(selectorMode === 'COLLEGE' && college === item) || (selectorMode === 'DEPT' && department === item) ? (
-                                    <CheckIcon className="w-5 h-5 text-blue-500" />
+                                    <CheckIcon className="w-5 h-5 text-white" />
                                 ) : null}
                             </button>
                         ))
@@ -184,7 +186,7 @@ const OnboardingView: React.FC<OnboardingViewProps> = ({ user, onComplete }) => 
                     {searchQuery && filteredItems.length === 0 && selectorMode === 'COLLEGE' && (
                         <button
                             onClick={() => handleSelect(searchQuery)}
-                            className="w-full text-left px-5 py-4 text-blue-400 text-sm font-medium"
+                            className="w-full text-left px-5 py-4 text-white font-medium text-sm"
                         >
                             Can't find it? Tap to use "{searchQuery}"
                         </button>
@@ -195,13 +197,22 @@ const OnboardingView: React.FC<OnboardingViewProps> = ({ user, onComplete }) => 
     }
 
     return (
-        <div className="flex flex-col items-center min-h-screen bg-black text-white px-8 pt-16">
-            <div className="w-full max-w-[350px] flex flex-col items-center">
+        <div className="flex flex-col items-center min-h-screen text-white px-8 pt-16"
+            style={{ backgroundColor: '#4a0404' }}
+        >
+            {/* Subtle patterns overlay */}
+            <div className="fixed inset-0 opacity-5 pointer-events-none">
+                <div className="absolute inset-0" style={{
+                    backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.4'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+                }} />
+            </div>
 
-                {/* Avatar Parity Section */}
+            <div className="w-full max-w-[350px] flex flex-col items-center relative z-10">
+
+                {/* Avatar Section */}
                 <div className="flex flex-col items-center mb-10">
                     <div
-                        className="relative w-[110px] h-[110px] rounded-full flex items-center justify-center bg-[#262626] border border-black overflow-hidden ring-1 ring-white/10"
+                        className="relative w-[110px] h-[110px] rounded-full flex items-center justify-center bg-white/10 backdrop-blur-sm border border-white/20 overflow-hidden cursor-pointer"
                         onClick={handleAvatarClick}
                     >
                         {isUploading ? (
@@ -210,7 +221,7 @@ const OnboardingView: React.FC<OnboardingViewProps> = ({ user, onComplete }) => 
                             <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
                         ) : (
                             // Neutral placeholder
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="#555" className="w-16 h-16">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="rgba(255,255,255,0.5)" className="w-16 h-16">
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
                             </svg>
                         )}
@@ -218,7 +229,7 @@ const OnboardingView: React.FC<OnboardingViewProps> = ({ user, onComplete }) => 
 
                     <button
                         onClick={handleAvatarClick}
-                        className="mt-3 text-[#0095F6] text-[13px] font-bold active:opacity-60 transition-opacity"
+                        className="mt-3 text-white text-[13px] font-bold active:opacity-60 transition-opacity underline underline-offset-2"
                     >
                         {avatarUrl ? 'Change profile photo' : 'Add profile photo'}
                     </button>
@@ -234,50 +245,50 @@ const OnboardingView: React.FC<OnboardingViewProps> = ({ user, onComplete }) => 
 
                 {/* Form Fields */}
                 <div className="w-full space-y-4">
-                    <div className="w-full bg-[#121212] border border-[#262626] rounded-[3px] focus-within:border-gray-500 transition-colors">
+                    <div className="w-full bg-black/30 backdrop-blur-sm border border-white/20 rounded-xl focus-within:border-white/40 transition-colors">
                         <input
                             type="text"
                             value={displayName}
                             onChange={(e) => setDisplayName(e.target.value)}
                             placeholder="Username"
-                            className="w-full bg-transparent text-sm py-2.5 px-3 text-white placeholder:text-gray-500 focus:outline-none"
+                            className="w-full bg-transparent text-base py-3.5 px-4 text-white placeholder:text-white/40 focus:outline-none"
                         />
                     </div>
 
                     <button
                         onClick={() => setSelectorMode('COLLEGE')}
-                        className="w-full bg-[#121212] border border-[#262626] rounded-[3px] focus-within:border-gray-500 transition-colors text-left py-2.5 px-3 flex items-center justify-between group active:bg-[#1a1a1a]"
+                        className="w-full bg-black/30 backdrop-blur-sm border border-white/20 rounded-xl focus-within:border-white/40 transition-colors text-left py-3.5 px-4 flex items-center justify-between group active:bg-white/10"
                     >
-                        <span className={`text-sm ${college ? 'text-white' : 'text-gray-500'}`}>
+                        <span className={`text-base ${college ? 'text-white' : 'text-white/40'}`}>
                             {college || "Select College"}
                         </span>
-                        <span className="text-gray-500 text-xs group-hover:text-gray-400">▼</span>
+                        <span className="text-white/40 text-xs group-hover:text-white/60">▼</span>
                     </button>
 
                     <button
                         onClick={() => setSelectorMode('DEPT')}
-                        className="w-full bg-[#121212] border border-[#262626] rounded-[3px] focus-within:border-gray-500 transition-colors text-left py-2.5 px-3 flex items-center justify-between group active:bg-[#1a1a1a]"
+                        className="w-full bg-black/30 backdrop-blur-sm border border-white/20 rounded-xl focus-within:border-white/40 transition-colors text-left py-3.5 px-4 flex items-center justify-between group active:bg-white/10"
                     >
-                        <span className={`text-sm ${department ? 'text-white' : 'text-gray-500'}`}>
+                        <span className={`text-base ${department ? 'text-white' : 'text-white/40'}`}>
                             {department || "Select Department"}
                         </span>
-                        <span className="text-gray-500 text-xs group-hover:text-gray-400">▼</span>
+                        <span className="text-white/40 text-xs group-hover:text-white/60">▼</span>
                     </button>
                 </div>
 
                 <button
                     onClick={handleSubmit}
                     disabled={!isFormValid || isSaving}
-                    className="w-full mt-6 bg-[#0095F6] text-white text-sm font-semibold py-2.5 rounded-[4px] disabled:opacity-30 disabled:cursor-not-allowed hover:bg-[#1877F2] transition-colors flex justify-center items-center"
+                    className="w-full mt-6 bg-white text-[#4a0404] text-base font-bold py-3.5 rounded-xl disabled:opacity-30 disabled:cursor-not-allowed hover:bg-white/90 transition-colors flex justify-center items-center shadow-lg shadow-black/30"
                 >
                     {isSaving ? (
-                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <div className="w-5 h-5 border-2 border-[#4a0404]/30 border-t-[#4a0404] rounded-full animate-spin" />
                     ) : (
                         "Complete Setup"
                     )}
                 </button>
 
-                <p className="text-[#A8A8A8] text-xs text-center mt-6 leading-relaxed">
+                <p className="text-white/50 text-xs text-center mt-6 leading-relaxed">
                     By continuing, you agree to keep this community helpful and anonymous.
                 </p>
             </div>

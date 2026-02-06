@@ -1,10 +1,10 @@
 /**
  * ============================================================================
- * NOTIFICATIONS VIEW
+ * NOTIFICATIONS VIEW - Instagram Style
  * ============================================================================
  * 
- * Full-page notifications screen with real-time updates
- * Uses Firebase Firestore for notifications
+ * Clean notifications screen like Instagram - no headers, minimal UI
+ * Uses Firebase Firestore for real-time notifications
  * 
  * ============================================================================
  */
@@ -18,9 +18,10 @@ import { useNotificationsRealtime } from '../src/hooks/useFirebaseRealtime';
 interface NotificationsViewProps {
     userId: string;
     onBack: () => void;
+    onNotificationClick?: (postId: string) => void;
 }
 
-const NotificationsView: React.FC<NotificationsViewProps> = ({ userId, onBack }) => {
+const NotificationsView: React.FC<NotificationsViewProps> = ({ userId, onBack, onNotificationClick }) => {
     const [notifications, setNotifications] = useState<NotificationWithPost[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -73,18 +74,29 @@ const NotificationsView: React.FC<NotificationsViewProps> = ({ userId, onBack })
         setRefreshing(false);
     };
 
-    const getNotificationText = (notif: NotificationWithPost): string => {
+    const handleNotificationClick = (notif: NotificationWithPost) => {
+        if (notif.post_id && onNotificationClick) {
+            onNotificationClick(notif.post_id);
+        }
+    };
+
+    const getNotificationText = (notif: NotificationWithPost): React.ReactNode => {
         switch (notif.type) {
             case 'like':
-                return `liked your post`;
+                return <span className="text-white/70">liked your post</span>;
             case 'comment':
-                return `commented: ${notif.content?.substring(0, 40)}${notif.content && notif.content.length > 40 ? '...' : ''}`;
+                return (
+                    <>
+                        <span className="text-white/70">commented: </span>
+                        <span className="text-white/50">{notif.content?.substring(0, 40)}{notif.content && notif.content.length > 40 ? '...' : ''}</span>
+                    </>
+                );
             case 'reply':
-                return `replied to your comment`;
+                return <span className="text-white/70">replied to your comment</span>;
             case 'mention':
-                return `mentioned you`;
+                return <span className="text-white/70">mentioned you</span>;
             default:
-                return 'sent you a notification';
+                return <span className="text-white/70">sent you a notification</span>;
         }
     };
 
@@ -103,127 +115,153 @@ const NotificationsView: React.FC<NotificationsViewProps> = ({ userId, onBack })
         return 'now';
     };
 
-    const unreadCount = notifications.filter(n => !n.read).length;
+    // Group notifications by time periods (Today, This Week, Earlier)
+    const groupNotifications = (notifs: NotificationWithPost[]) => {
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const thisWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+        const thisMonth = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+        const groups: { label: string; notifications: NotificationWithPost[] }[] = [
+            { label: 'Today', notifications: [] },
+            { label: 'This Week', notifications: [] },
+            { label: 'This Month', notifications: [] },
+            { label: 'Earlier', notifications: [] },
+        ];
+
+        notifs.forEach(notif => {
+            const notifDate = new Date(notif.created_at);
+            if (notifDate >= today) {
+                groups[0].notifications.push(notif);
+            } else if (notifDate >= thisWeek) {
+                groups[1].notifications.push(notif);
+            } else if (notifDate >= thisMonth) {
+                groups[2].notifications.push(notif);
+            } else {
+                groups[3].notifications.push(notif);
+            }
+        });
+
+        return groups.filter(g => g.notifications.length > 0);
+    };
+
+    const groupedNotifications = groupNotifications(notifications);
 
     return (
-        <div className="h-full flex flex-col bg-background dark:bg-dark-background pb-16">
-            {/* Header */}
-            <header className="flex-shrink-0 bg-background dark:bg-dark-background border-b border-border-color dark:border-dark-border-color px-4 py-3 pt-12 flex items-center justify-between sticky top-0 z-10">
-                <div className="flex items-center gap-3">
-                    <button
-                        onClick={onBack}
-                        className="p-2 -ml-2 text-primary-text dark:text-dark-primary-text active:scale-95 transition-transform"
-                    >
-                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
-                        </svg>
-                    </button>
-                    <div>
-                        <h1 className="text-xl font-bold text-primary-text dark:text-dark-primary-text">Notifications</h1>
-                        {unreadCount > 0 && (
-                            <p className="text-xs text-secondary-text dark:text-dark-secondary-text">
-                                {unreadCount} unread
-                            </p>
-                        )}
-                    </div>
+        <div className="h-full flex flex-col bg-black pb-16">
+            {/* Pull to Refresh Indicator */}
+            {refreshing && (
+                <div className="flex justify-center py-4">
+                    <div className="w-6 h-6 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
                 </div>
-                <div className="flex items-center gap-2">
-                    {unreadCount > 0 && (
-                        <button
-                            onClick={handleMarkAllRead}
-                            className="text-sm text-accent-primary hover:text-accent-secondary font-semibold transition-colors px-3 py-1"
-                        >
-                            Mark all read
-                        </button>
-                    )}
-                    <button
-                        onClick={handleRefresh}
-                        disabled={refreshing}
-                        className="p-2 text-secondary-text dark:text-dark-secondary-text hover:text-primary-text active:scale-95 transition-transform disabled:opacity-50"
-                    >
-                        <ArrowPathIcon className={`w-5 h-5 ${refreshing ? 'animate-spin' : ''}`} />
-                    </button>
-                </div>
-            </header>
+            )}
 
-            {/* Notifications List */}
-            <div className="flex-1 overflow-y-auto no-scrollbar">
+            {/* Notifications List - Instagram Style */}
+            <div
+                className="flex-1 overflow-y-auto no-scrollbar"
+                onTouchStart={(e) => {
+                    const touch = e.touches[0];
+                    (e.currentTarget as any).startY = touch.clientY;
+                }}
+                onTouchEnd={(e) => {
+                    const target = e.currentTarget as any;
+                    if (target.scrollTop === 0 && target.startY && target.startY > 100) {
+                        handleRefresh();
+                    }
+                }}
+            >
                 {loading ? (
                     <div className="flex justify-center items-center h-60">
-                        <div className="w-8 h-8 border-2 border-accent-primary border-t-transparent rounded-full animate-spin"></div>
+                        <div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
                     </div>
                 ) : notifications.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-full px-8 text-center">
-                        <BellIcon className="w-20 h-20 mb-4 opacity-20 text-secondary-text" />
-                        <p className="text-lg font-semibold text-primary-text dark:text-dark-primary-text mb-2">
-                            No notifications yet
+                        <div className="w-24 h-24 rounded-full border-2 border-white/10 flex items-center justify-center mb-6">
+                            <BellIcon className="w-12 h-12 text-white/20" />
+                        </div>
+                        <p className="text-xl font-semibold text-white mb-2">
+                            Activity On Your Posts
                         </p>
-                        <p className="text-sm text-secondary-text dark:text-dark-secondary-text">
-                            When someone likes or comments on your posts, you'll see it here.
+                        <p className="text-sm text-white/50">
+                            When someone likes or comments on one of your posts, you'll see it here.
                         </p>
                     </div>
                 ) : (
                     <div>
-                        {notifications.map((notif, index) => (
-                            <div
-                                key={notif.id}
-                                className={`px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-all duration-200 border-b border-border-color/30 dark:border-dark-border-color/30 ${!notif.read ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''
-                                    }`}
-                            >
-                                <div className="flex items-center gap-3">
-                                    {/* Avatar */}
-                                    <div className="relative flex-shrink-0">
-                                        <div
-                                            className="w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold overflow-hidden"
-                                            style={{
-                                                backgroundColor: notif.actor_avatar ? 'transparent' : '#667eea'
-                                            }}
-                                        >
-                                            {notif.actor_avatar ? (
-                                                <img
-                                                    src={notif.actor_avatar}
-                                                    alt={notif.actor_name}
-                                                    className="w-full h-full object-cover"
-                                                />
-                                            ) : (
-                                                (notif.actor_name || 'A').charAt(0).toUpperCase()
+                        {groupedNotifications.map((group) => (
+                            <div key={group.label}>
+                                {/* Section Header */}
+                                <div className="px-4 py-3 bg-black sticky top-0 z-10">
+                                    <h3 className="text-white font-bold text-[15px]">{group.label}</h3>
+                                </div>
+
+                                {/* Notifications in Group */}
+                                {group.notifications.map((notif) => (
+                                    <button
+                                        key={notif.id}
+                                        onClick={() => handleNotificationClick(notif)}
+                                        className={`w-full px-4 py-3 flex items-center gap-3 active:bg-white/5 transition-colors ${!notif.read ? 'bg-[#0095f6]/5' : ''
+                                            }`}
+                                    >
+                                        {/* Avatar */}
+                                        <div className="relative flex-shrink-0">
+                                            <div
+                                                className="w-11 h-11 rounded-full flex items-center justify-center text-white font-semibold overflow-hidden"
+                                                style={{
+                                                    backgroundColor: notif.actor_avatar ? 'transparent' : '#262626'
+                                                }}
+                                            >
+                                                {notif.actor_avatar ? (
+                                                    <img
+                                                        src={notif.actor_avatar}
+                                                        alt={notif.actor_name}
+                                                        className="w-full h-full object-cover"
+                                                    />
+                                                ) : (
+                                                    <span className="text-sm">
+                                                        {(notif.actor_name || 'A').charAt(0).toUpperCase()}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            {/* Notification Type Icon */}
+                                            {notif.type === 'like' && (
+                                                <div className="absolute -bottom-0.5 -right-0.5 w-5 h-5 bg-[#ff3040] rounded-full flex items-center justify-center border-2 border-black">
+                                                    <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                                        <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
+                                                    </svg>
+                                                </div>
+                                            )}
+                                            {notif.type === 'comment' && (
+                                                <div className="absolute -bottom-0.5 -right-0.5 w-5 h-5 bg-[#0095f6] rounded-full flex items-center justify-center border-2 border-black">
+                                                    <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                                                    </svg>
+                                                </div>
                                             )}
                                         </div>
-                                        {!notif.read && (
-                                            <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-accent-primary rounded-full border-2 border-background dark:border-dark-background"></div>
-                                        )}
-                                    </div>
 
-                                    {/* Content */}
-                                    <div className="flex-1 min-w-0">
-                                        <p className="text-sm text-primary-text dark:text-dark-primary-text leading-tight">
-                                            <span className="font-semibold">{notif.actor_name || 'Someone'}</span>
-                                            {' '}
-                                            <span className="text-secondary-text dark:text-dark-secondary-text">
+                                        {/* Content */}
+                                        <div className="flex-1 min-w-0 text-left">
+                                            <p className="text-[14px] leading-tight">
+                                                <span className="font-semibold text-white">{notif.actor_name || 'Someone'}</span>
+                                                {' '}
                                                 {getNotificationText(notif)}
-                                            </span>
-                                        </p>
-                                        <p className="text-xs text-secondary-text dark:text-dark-secondary-text mt-1">
-                                            {timeAgo(notif.created_at)}
-                                        </p>
-                                    </div>
+                                                {' '}
+                                                <span className="text-white/40">{timeAgo(notif.created_at)}</span>
+                                            </p>
+                                        </div>
 
-                                    {/* Type indicator icon */}
-                                    {notif.type === 'like' && (
-                                        <div className="flex-shrink-0">
-                                            <svg className="w-6 h-6 text-red-500" fill="currentColor" viewBox="0 0 20 20">
-                                                <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
-                                            </svg>
-                                        </div>
-                                    )}
-                                    {notif.type === 'comment' && (
-                                        <div className="flex-shrink-0">
-                                            <svg className="w-6 h-6 text-accent-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                                            </svg>
-                                        </div>
-                                    )}
-                                </div>
+                                        {/* Follow Button (for follow notifications) or Post Thumbnail */}
+                                        {notif.type === 'like' || notif.type === 'comment' ? (
+                                            <div className="w-11 h-11 rounded bg-[#262626] flex-shrink-0 overflow-hidden">
+                                                {/* Post thumbnail placeholder */}
+                                                <div className="w-full h-full flex items-center justify-center text-white/20 text-xs">
+                                                    📝
+                                                </div>
+                                            </div>
+                                        ) : null}
+                                    </button>
+                                ))}
                             </div>
                         ))}
                     </div>

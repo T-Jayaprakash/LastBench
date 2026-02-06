@@ -12,6 +12,7 @@
  * - Real-time updates for new posts
  * - Pull-to-refresh support
  * - Optimistic UI updates
+ * - Poll vote tracking
  * 
  * ============================================================================
  */
@@ -75,6 +76,42 @@ async function getUserLikedPostIds(userId: string, postIds: string[]): Promise<S
     } catch (err) {
         console.error('getUserLikedPostIds error:', err);
         return new Set();
+    }
+}
+
+/**
+ * Get user's poll votes for multiple posts
+ */
+async function getUserPollVotes(userId: string, postIds: string[]): Promise<Map<string, string>> {
+    if (!userId || postIds.length === 0) return new Map();
+
+    try {
+        const votesMap = new Map<string, string>();
+        const batchSize = 30;
+
+        for (let i = 0; i < postIds.length; i += batchSize) {
+            const batch = postIds.slice(i, i + batchSize);
+            const interactionsRef = collection(db, 'interactions');
+            const q = query(
+                interactionsRef,
+                where('user_id', '==', userId),
+                where('type', '==', 'vote'),
+                where('post_id', 'in', batch)
+            );
+
+            const snapshot = await getDocs(q);
+            snapshot.docs.forEach(doc => {
+                const data = doc.data();
+                if (data.post_id && data.option_id) {
+                    votesMap.set(data.post_id, data.option_id);
+                }
+            });
+        }
+
+        return votesMap;
+    } catch (err) {
+        console.error('getUserPollVotes error:', err);
+        return new Map();
     }
 }
 
@@ -158,12 +195,23 @@ export const useFeed = (userCollege: string | undefined, userId: string | undefi
                 lastDocRef.current = snapshot.docs[snapshot.docs.length - 1];
             }
 
-            // Check likes for posts
+            // Check likes and poll votes for posts
             if (userId && newPosts.length > 0) {
                 const postIds = newPosts.map(p => p.id);
-                const likedPostIds = await getUserLikedPostIds(userId, postIds);
+
+                // Fetch likes and votes in parallel
+                const [likedPostIds, pollVotes] = await Promise.all([
+                    getUserLikedPostIds(userId, postIds),
+                    getUserPollVotes(userId, postIds)
+                ]);
+
                 newPosts.forEach(post => {
                     post.isLiked = likedPostIds.has(post.id);
+
+                    // Set user's poll vote if they voted on this poll
+                    if (post.poll && pollVotes.has(post.id)) {
+                        post.poll.userVotedOptionId = pollVotes.get(post.id);
+                    }
                 });
             }
 
@@ -249,16 +297,24 @@ export const useFeed = (userCollege: string | undefined, userId: string | undefi
                             return prev;
                         }
 
-                        // Check if user liked this post
+                        // Check if user liked or voted on this post
                         if (userId) {
-                            getUserLikedPostIds(userId, [newPost.id]).then(likedIds => {
-                                if (likedIds.has(newPost.id)) {
-                                    setPosts(current =>
-                                        current.map(p =>
-                                            p.id === newPost.id ? { ...p, isLiked: true } : p
-                                        )
-                                    );
-                                }
+                            Promise.all([
+                                getUserLikedPostIds(userId, [newPost.id]),
+                                getUserPollVotes(userId, [newPost.id])
+                            ]).then(([likedIds, pollVotes]) => {
+                                setPosts(current =>
+                                    current.map(p => {
+                                        if (p.id === newPost.id) {
+                                            const updatedPost = { ...p, isLiked: likedIds.has(newPost.id) };
+                                            if (updatedPost.poll && pollVotes.has(newPost.id)) {
+                                                updatedPost.poll.userVotedOptionId = pollVotes.get(newPost.id);
+                                            }
+                                            return updatedPost;
+                                        }
+                                        return p;
+                                    })
+                                );
                             });
                         }
 

@@ -1,14 +1,17 @@
 
+
 import React, { useState, useEffect, useRef } from 'react';
-import { Post, Comment } from '../types/index';
+import { Post, Comment, User } from '../types/index';
 import { t } from '../constants/locales';
 import * as api from '../services/api';
 import { ArrowLeftIcon, HeartIcon } from '../components/Icons';
 import { useFirestoreCollection } from '../src/hooks/useFirebaseRealtime';
 import { where, orderBy } from 'firebase/firestore';
 
+
 interface CommentViewProps {
     post: Post;
+    currentUser: User | null;
     onBack: () => void;
 }
 
@@ -141,7 +144,7 @@ const CommentItem: React.FC<CommentItemProps> = ({ comment, replies, allComments
     );
 };
 
-const CommentView: React.FC<CommentViewProps> = ({ post, onBack }) => {
+const CommentView: React.FC<CommentViewProps> = ({ post, currentUser, onBack }) => {
     const [comments, setComments] = useState<Comment[]>([]);
     const [newComment, setNewComment] = useState('');
     const [loading, setLoading] = useState(true);

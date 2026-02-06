@@ -22,6 +22,9 @@ export const DEPARTMENTS: string[] = [
     'Aero',
     'Arch',
     'AIML',
+    'AIMD',
+    'CSBS',
+    'Others',
 ];
 
 // Premium vibrant avatar colors that pop on dark backgrounds

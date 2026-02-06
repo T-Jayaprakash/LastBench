@@ -2,7 +2,7 @@
 import React, { useState, useRef } from 'react';
 import { PostTag, Post } from '../types/index';
 import { t } from '../constants/locales';
-import { PhotoIcon, XMarkIcon, SparklesIcon, ChartBarIcon } from '../components/Icons';
+import { PhotoIcon, XMarkIcon, SparklesIcon, ChartBarIcon, ClockIcon } from '../components/Icons';
 import * as userService from '../services/userService';
 import * as api from '../services/api';
 import { useToast } from '../components/Toast';
@@ -11,6 +11,14 @@ interface CreatePostViewProps {
     onPostSuccess: (post: Post) => void;
     onCancel: () => void;
 }
+
+// Banner duration options
+const BANNER_DURATIONS = [
+    { label: '1 day', value: 1 },
+    { label: '2 days', value: 2 },
+    { label: '1 week', value: 7 },
+    { label: '1 month', value: 30 },
+];
 
 const CreatePostView: React.FC<CreatePostViewProps> = ({ onPostSuccess, onCancel }) => {
     const [text, setText] = useState('');
@@ -23,6 +31,8 @@ const CreatePostView: React.FC<CreatePostViewProps> = ({ onPostSuccess, onCancel
 
     // Banner Option
     const [isBanner, setIsBanner] = useState(false);
+    const [bannerDuration, setBannerDuration] = useState(1); // Default 1 day (24h)
+    const [showDurationPicker, setShowDurationPicker] = useState(false);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
     const { showToast, updateToast } = useToast();
@@ -36,11 +46,6 @@ const CreatePostView: React.FC<CreatePostViewProps> = ({ onPostSuccess, onCancel
             const newPreviews = newFiles.map(file => URL.createObjectURL(file));
             const totalPreviews = [...previews, ...newPreviews].slice(0, 10);
             setPreviews(totalPreviews);
-
-            // Disable poll mode if images are added (WhatsApp style: Post is EITHER media OR poll usually, or difficult to UI mix)
-            // But Instagram stories allow both. Let's allow mixed for fun, or restrict?
-            // User requirement: "create a poll like whatsapp". WhatsApp allows text+poll.
-            // Let's keep it simple. Mixed is okay.
         }
     };
 
@@ -98,11 +103,19 @@ const CreatePostView: React.FC<CreatePostViewProps> = ({ onPostSuccess, onCancel
                 uploadedUrls = results.filter(url => url !== null) as string[];
             }
 
+            // Calculate banner expiry date
+            let bannerExpiresAt: Date | undefined;
+            if (isBanner) {
+                bannerExpiresAt = new Date();
+                bannerExpiresAt.setDate(bannerExpiresAt.getDate() + bannerDuration);
+            }
+
             const postPayload: any = {
                 text,
                 images: uploadedUrls,
                 tags: [],
-                isBanner
+                isBanner,
+                bannerExpiresAt: isBanner ? bannerExpiresAt : undefined
             };
 
             if (isPollMode) {
@@ -137,6 +150,11 @@ const CreatePostView: React.FC<CreatePostViewProps> = ({ onPostSuccess, onCancel
     const charCount = text.length;
     const maxChars = 500;
 
+    const getDurationLabel = () => {
+        const duration = BANNER_DURATIONS.find(d => d.value === bannerDuration);
+        return duration?.label || '1 day';
+    };
+
     return (
         <div className="flex flex-col h-full bg-black animate-fade-in relative">
             {/* Header - Instagram Style */}
@@ -166,7 +184,6 @@ const CreatePostView: React.FC<CreatePostViewProps> = ({ onPostSuccess, onCancel
                 {/* User Info Row (Subtle) */}
                 <div className="flex items-center gap-3 pt-2 mb-2">
                     <div className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center overflow-hidden">
-                        {/* Avatar Image or Initial - Placeholder logic needed if user prop not available directly here, but using placeholder style */}
                         <div className="text-[10px] font-bold text-gray-400">?</div>
                     </div>
                     <span className="text-gray-200 font-semibold text-[14px]">Anonymous Student</span>
@@ -212,17 +229,51 @@ const CreatePostView: React.FC<CreatePostViewProps> = ({ onPostSuccess, onCancel
                 )}
 
                 {/* Banner Option */}
-                <div className="mt-4 flex items-center gap-2">
-                    <input
-                        type="checkbox"
-                        id="isBanner"
-                        checked={isBanner}
-                        onChange={(e) => setIsBanner(e.target.checked)}
-                        className="w-4 h-4 rounded border-gray-600 bg-gray-800 text-blue-500 focus:ring-blue-500"
-                    />
-                    <label htmlFor="isBanner" className="text-gray-400 text-sm select-none">
-                        Promote to Banner (Ad/Event)
-                    </label>
+                <div className="mt-4 space-y-3">
+                    <div className="flex items-center gap-3">
+                        <input
+                            type="checkbox"
+                            id="isBanner"
+                            checked={isBanner}
+                            onChange={(e) => {
+                                setIsBanner(e.target.checked);
+                                if (e.target.checked) {
+                                    setShowDurationPicker(true);
+                                }
+                            }}
+                            className="w-5 h-5 rounded border-gray-600 bg-gray-800 text-blue-500 focus:ring-blue-500"
+                        />
+                        <label htmlFor="isBanner" className="text-gray-300 text-sm select-none flex-1">
+                            🎯 Promote to Banner (Ad/Event)
+                        </label>
+                    </div>
+
+                    {/* Banner Duration Picker */}
+                    {isBanner && (
+                        <div className="animate-fade-in">
+                            <div className="flex items-center gap-2 mb-2">
+                                <ClockIcon className="w-4 h-4 text-gray-400" />
+                                <span className="text-gray-400 text-sm">Banner expires after:</span>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                                {BANNER_DURATIONS.map((duration) => (
+                                    <button
+                                        key={duration.value}
+                                        onClick={() => setBannerDuration(duration.value)}
+                                        className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${bannerDuration === duration.value
+                                                ? 'bg-[#0095F6] text-white'
+                                                : 'bg-[#262626] text-gray-300 hover:bg-[#363636]'
+                                            }`}
+                                    >
+                                        {duration.label}
+                                    </button>
+                                ))}
+                            </div>
+                            <p className="text-gray-500 text-xs mt-2">
+                                ⓘ Your banner will automatically be removed after {getDurationLabel()}. The post will still remain visible in the feed.
+                            </p>
+                        </div>
+                    )}
                 </div>
 
                 {/* Image Previews (Horizontal Scroll) */}

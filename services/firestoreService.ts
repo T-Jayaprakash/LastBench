@@ -110,9 +110,12 @@ export const mapDocToPost = (doc: QueryDocumentSnapshot<DocumentData>): Post => 
         createdAt: data.created_at?.toDate ? data.created_at.toDate() : (data.created_at ? new Date(data.created_at) : new Date()),
         trendingScore: (data.likes_count || 0) + ((data.comments_count || 0) * 2),
         isLiked: false, // Will be set separately after checking interactions
+        isBanner: data.is_banner || false,
+        bannerExpiresAt: data.banner_expires_at?.toDate ? data.banner_expires_at.toDate() : (data.banner_expires_at ? new Date(data.banner_expires_at) : undefined),
         poll: data.poll
     };
 };
+
 
 // ============================================================================
 // REAL-TIME SUBSCRIPTIONS
@@ -345,7 +348,7 @@ export const getPostById = async (postId: string): Promise<Post | null> => {
 };
 
 /**
- * Get banner posts (Ads/Events)
+ * Get banner posts (Ads/Events) - filters out expired banners
  */
 export const getBannerPosts = async (): Promise<Post[]> => {
     try {
@@ -354,16 +357,36 @@ export const getBannerPosts = async (): Promise<Post[]> => {
             postsRef,
             where('is_banner', '==', true),
             orderBy('created_at', 'desc'),
-            limit(10)
+            limit(20) // Fetch more to account for expired ones
         );
 
         const snapshot = await getDocs(q);
-        return snapshot.docs.map(mapDocToPost);
+        const allBanners = snapshot.docs.map(mapDocToPost);
+
+        // Filter out expired banners
+        const now = new Date();
+        const activeBanners = allBanners.filter(post => {
+            if (post.bannerExpiresAt) {
+                const expiryDate = post.bannerExpiresAt instanceof Date
+                    ? post.bannerExpiresAt
+                    : new Date(post.bannerExpiresAt);
+                return expiryDate > now;
+            }
+            // Legacy banners without expiry: consider them expired after 24h
+            const createdAt = post.createdAt instanceof Date
+                ? post.createdAt
+                : new Date(post.createdAt);
+            const defaultExpiry = new Date(createdAt.getTime() + 24 * 60 * 60 * 1000);
+            return defaultExpiry > now;
+        });
+
+        return activeBanners.slice(0, 10); // Return max 10 active banners
     } catch (e) {
         console.error("getBannerPosts error:", e);
         return [];
     }
 };
+
 
 /**
  * Get posts by a specific user (by their anon ID)
@@ -458,7 +481,7 @@ export const getLikedPosts = async (anonId: string): Promise<Post[]> => {
 /**
  * Create a new post
  */
-export const createPost = async (newPostData: { text: string; images?: string[]; tags: PostTag[]; poll?: any; isBanner?: boolean }): Promise<Post | null> => {
+export const createPost = async (newPostData: { text: string; images?: string[]; tags: PostTag[]; poll?: any; isBanner?: boolean; bannerExpiresAt?: Date }): Promise<Post | null> => {
     try {
         const user = await getCurrentUser();
         if (!user) {
@@ -484,6 +507,11 @@ export const createPost = async (newPostData: { text: string; images?: string[];
             created_at: serverTimestamp(),
             is_banner: newPostData.isBanner || false,
         };
+
+        // Add banner expiry if this is a banner post
+        if (newPostData.isBanner && newPostData.bannerExpiresAt) {
+            postData.banner_expires_at = newPostData.bannerExpiresAt;
+        }
 
         // Add images if provided
         if (newPostData.images && newPostData.images.length > 0) {
@@ -522,8 +550,10 @@ export const createPost = async (newPostData: { text: string; images?: string[];
             trendingScore: 0,
             isLiked: false,
             poll: newPostData.poll,
-            isBanner: newPostData.isBanner
+            isBanner: newPostData.isBanner,
+            bannerExpiresAt: newPostData.bannerExpiresAt
         };
+
 
         return createdPost;
     } catch (err: any) {
@@ -672,6 +702,45 @@ async function getUserLikedPostIds(userId: string, postIds: string[]): Promise<S
     } catch (err) {
         console.error('getUserLikedPostIds error:', err);
         return new Set();
+    }
+}
+
+/**
+ * Get user's poll votes for multiple posts
+ * Returns a Map of postId -> optionId that the user voted for
+ */
+export async function getUserPollVotes(userId: string, postIds: string[]): Promise<Map<string, string>> {
+    try {
+        if (!userId || postIds.length === 0) return new Map();
+
+        const votesMap = new Map<string, string>();
+
+        // Query interactions in batches (Firestore 'in' query limit is 30)
+        const batchSize = 30;
+        for (let i = 0; i < postIds.length; i += batchSize) {
+            const batch = postIds.slice(i, i + batchSize);
+
+            const interactionsRef = collection(db, COLLECTIONS.INTERACTIONS);
+            const q = query(
+                interactionsRef,
+                where('user_id', '==', userId),
+                where('type', '==', 'vote'),
+                where('post_id', 'in', batch)
+            );
+
+            const snapshot = await getDocs(q);
+            snapshot.docs.forEach(doc => {
+                const data = doc.data();
+                if (data.post_id && data.option_id) {
+                    votesMap.set(data.post_id, data.option_id);
+                }
+            });
+        }
+
+        return votesMap;
+    } catch (err) {
+        console.error('getUserPollVotes error:', err);
+        return new Map();
     }
 }
 

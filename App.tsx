@@ -5,6 +5,7 @@ import HomeFeed from './views/HomeFeed';
 import CreatePostView from './views/CreatePostView';
 import ProfileView from './views/ProfileView';
 import BottomNav from './components/BottomNav';
+import SwipeableViews from './components/SwipeableViews';
 import { t } from './constants/locales';
 import { Post, User, PostTag, View, Theme } from './types/index';
 import * as api from './services/api';
@@ -62,6 +63,9 @@ const SplashScreen = ({ isFinished }: { isFinished: boolean }) => {
     return null;
 };
 
+// Define swipeable views for navigation
+const SWIPEABLE_VIEWS: View[] = ['home', 'reels', 'notifications', 'profile'];
+
 const AppContent: React.FC = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [currentView, setCurrentView] = useState<View>('home');
@@ -83,6 +87,8 @@ const AppContent: React.FC = () => {
     const [showPWAInstall, setShowPWAInstall] = useState(true);
     const unreadCount = useUnreadNotifications(user?.userId);
 
+    // Check if any modal is open (for disabling swipe)
+    const isModalOpen = !!(commentingPost || reportingPost || optionsPost || editingPost || viewingImages);
 
     // Use Toast for share notifications
     const { showToast } = useToast();
@@ -172,6 +178,15 @@ const AppContent: React.FC = () => {
         setCurrentView(view);
     };
 
+    // Handle swipe navigation for main views
+    const handleSwipeViewChange = (view: View) => {
+        if (currentView === view || isModalOpen) return;
+
+        // Don't push to history for swipe navigation between main tabs
+        // Just update the view directly
+        setCurrentView(view);
+    };
+
     const handleCreatePost = async (postContent: { text: string; images?: string[]; tags: PostTag[] }) => {
         if (!user) return;
 
@@ -249,18 +264,25 @@ const AppContent: React.FC = () => {
     };
 
     const handleCloseComments = () => {
+        setCommentingPost(null);
         window.history.back();
     };
+
     const handleCloseReport = (wasDeleted?: boolean) => {
-        window.history.back();
         if (wasDeleted && reportingPost) {
             setDeletedPostId(reportingPost.id);
         }
-    };
-    const handleCloseOptions = () => {
+        setReportingPost(null);
         window.history.back();
     };
+
+    const handleCloseOptions = () => {
+        setOptionsPost(null);
+        window.history.back();
+    };
+
     const handleCloseImages = () => {
+        setViewingImages(null);
         window.history.back();
     };
 
@@ -271,10 +293,28 @@ const AppContent: React.FC = () => {
 
         const onPopState = (event: PopStateEvent) => {
             const state = event.state;
-            setCommentingPost(null);
-            setReportingPost(null);
-            setOptionsPost(null);
-            setViewingImages(null);
+
+            // Close any open modals first (without calling window.history.back)
+            if (commentingPost) {
+                setCommentingPost(null);
+                return;
+            }
+            if (reportingPost) {
+                setReportingPost(null);
+                return;
+            }
+            if (optionsPost) {
+                setOptionsPost(null);
+                return;
+            }
+            if (viewingImages) {
+                setViewingImages(null);
+                return;
+            }
+            if (editingPost) {
+                setEditingPost(null);
+                return;
+            }
 
             // Update history stack
             if (historyStackRef.current.length > 1) {
@@ -344,15 +384,20 @@ const AppContent: React.FC = () => {
             window.removeEventListener('popstate', onPopState);
             if (backButtonListener) backButtonListener.remove();
         };
-    }, [currentView, viewingImages, commentingPost, reportingPost, optionsPost]);
+    }, [currentView, viewingImages, commentingPost, reportingPost, optionsPost, editingPost]);
 
     const handleShowEdit = (post: Post) => {
-        handleCloseOptions();
-        setEditingPost(post);
+        setOptionsPost(null); // Close options first (don't call handleCloseOptions to avoid double history.back)
+        setTimeout(() => {
+            window.history.pushState({ modal: 'edit', view: currentView }, '');
+            historyStackRef.current.push({ view: currentView, hasModal: true });
+            setEditingPost(post);
+        }, 100);
     };
 
     const handleCloseEdit = () => {
         setEditingPost(null);
+        window.history.back();
     };
 
     const handleSaveEdit = async (text: string) => {
@@ -369,11 +414,14 @@ const AppContent: React.FC = () => {
     const handleDeletePost = async (postId: string) => {
         const success = await api.deletePost(postId);
         if (success) {
-            handleCloseOptions();
+            setOptionsPost(null); // Close options without calling handleCloseOptions
             setDeletedPostId(postId);
             setViewingImages(null);
             setCommentingPost(null);
-            setOptionsPost(null);
+
+            // Go back to previous state
+            window.history.back();
+
             setTimeout(() => {
                 if (currentView !== 'home') {
                     window.history.replaceState({ view: 'home' }, '');
@@ -400,58 +448,68 @@ const AppContent: React.FC = () => {
         return <OnboardingView user={user} onComplete={handleOnboardingComplete} />;
     }
 
+    // Check if current view is in swipeable views
+    const isSwipeableView = SWIPEABLE_VIEWS.includes(currentView);
+
     return (
         <div className="flex flex-col h-screen w-screen max-w-md mx-auto bg-background dark:bg-dark-background overflow-hidden relative shadow-2xl">
             <main className="flex-grow overflow-hidden relative">
-                <div className={`h-full w-full ${currentView === 'home' ? 'block' : 'hidden'}`}>
-                    <HomeFeed
-                        user={user}
-                        onCommentClick={handleShowComments}
-                        onOptionsClick={handleShowOptions}
-                        onViewImages={handleViewImages}
-                        newPost={latestPost}
-                        deletedPostId={deletedPostId}
-                        updatedPost={updatedPost}
-                        onNotificationClick={() => navigateTo('notifications')}
-                        onShareSuccess={handleShareSuccess}
-                    />
-                </div>
-
-                <div className={`h-full w-full ${currentView === 'reels' ? 'block' : 'hidden'}`}>
-                    <Suspense fallback={null}>
-                        <ReelsView
+                {/* Swipeable Views Container */}
+                {isSwipeableView && (
+                    <SwipeableViews
+                        views={SWIPEABLE_VIEWS}
+                        currentView={currentView}
+                        onViewChange={handleSwipeViewChange}
+                        disabled={isModalOpen}
+                    >
+                        {/* Home */}
+                        <HomeFeed
                             user={user}
                             onCommentClick={handleShowComments}
                             onOptionsClick={handleShowOptions}
                             onViewImages={handleViewImages}
+                            newPost={latestPost}
+                            deletedPostId={deletedPostId}
+                            updatedPost={updatedPost}
+                            onNotificationClick={() => navigateTo('notifications')}
+                            onShareSuccess={handleShareSuccess}
                         />
-                    </Suspense>
-                </div>
 
+                        {/* Reels */}
+                        <Suspense fallback={null}>
+                            <ReelsView
+                                user={user}
+                                onCommentClick={handleShowComments}
+                                onOptionsClick={handleShowOptions}
+                                onViewImages={handleViewImages}
+                            />
+                        </Suspense>
+
+                        {/* Notifications */}
+                        <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="animate-spin h-8 w-8 border-2 border-accent-primary border-t-transparent rounded-full"></div></div>}>
+                            <NotificationsView userId={user.userId} onBack={() => navigateTo('home')} />
+                        </Suspense>
+
+                        {/* Profile */}
+                        <ProfileView
+                            user={user}
+                            onUpdateUser={handleUpdateUser}
+                            theme={theme}
+                            toggleTheme={toggleTheme}
+                            onSettingsClick={() => navigateTo('settings')}
+                            onViewImages={handleViewImages}
+                            onLogout={handleLogout}
+                        />
+                    </SwipeableViews>
+                )}
+
+                {/* Non-swipeable views */}
                 {currentView === 'create' && (
                     <CreatePostView
                         onPostSuccess={handlePostSuccess}
                         onCancel={() => window.history.back()}
                     />
                 )}
-
-                <div className={`h-full w-full ${currentView === 'profile' ? 'block' : 'hidden'}`}>
-                    <ProfileView
-                        user={user}
-                        onUpdateUser={handleUpdateUser}
-                        theme={theme}
-                        toggleTheme={toggleTheme}
-                        onSettingsClick={() => navigateTo('settings')}
-                        onViewImages={handleViewImages}
-                        onLogout={handleLogout}
-                    />
-                </div>
-
-                <div className={`h-full w-full ${currentView === 'notifications' ? 'block' : 'hidden'}`}>
-                    <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="animate-spin h-8 w-8 border-2 border-accent-primary border-t-transparent rounded-full"></div></div>}>
-                        <NotificationsView userId={user.userId} onBack={() => window.history.back()} />
-                    </Suspense>
-                </div>
 
                 {currentView === 'settings' && (
                     <Suspense fallback={null}>
@@ -486,7 +544,8 @@ const AppContent: React.FC = () => {
                         onEdit={() => handleShowEdit(optionsPost)}
                         onReport={() => {
                             const postToReport = optionsPost;
-                            handleCloseOptions();
+                            setOptionsPost(null);
+                            window.history.back();
                             setTimeout(() => {
                                 if (postToReport) handleShowReport(postToReport);
                             }, 350);
