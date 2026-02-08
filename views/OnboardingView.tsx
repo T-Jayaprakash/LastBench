@@ -136,7 +136,7 @@ const OnboardingView: React.FC<OnboardingViewProps> = ({ user, onComplete }) => 
     if (selectorMode) {
         return (
             <div className="fixed inset-0 z-50 flex flex-col animate-fade-in"
-                style={{ backgroundColor: '#4a0404' }}
+                style={{ backgroundColor: '#E53935' }}
             >
                 {/* Search Header */}
                 <div className="flex items-center px-4 py-3 border-b border-white/10 gap-3">
@@ -198,7 +198,7 @@ const OnboardingView: React.FC<OnboardingViewProps> = ({ user, onComplete }) => 
 
     return (
         <div className="flex flex-col items-center min-h-screen text-white px-8 pt-16"
-            style={{ backgroundColor: '#4a0404' }}
+            style={{ backgroundColor: '#E53935' }}
         >
             {/* Subtle patterns overlay */}
             <div className="fixed inset-0 opacity-5 pointer-events-none">
@@ -279,10 +279,10 @@ const OnboardingView: React.FC<OnboardingViewProps> = ({ user, onComplete }) => 
                 <button
                     onClick={handleSubmit}
                     disabled={!isFormValid || isSaving}
-                    className="w-full mt-6 bg-white text-[#4a0404] text-base font-bold py-3.5 rounded-xl disabled:opacity-30 disabled:cursor-not-allowed hover:bg-white/90 transition-colors flex justify-center items-center shadow-lg shadow-black/30"
+                    className="w-full mt-6 bg-white text-[#E53935] text-base font-bold py-3.5 rounded-xl disabled:opacity-30 disabled:cursor-not-allowed hover:bg-white/90 transition-colors flex justify-center items-center shadow-lg shadow-black/30"
                 >
                     {isSaving ? (
-                        <div className="w-5 h-5 border-2 border-[#4a0404]/30 border-t-[#4a0404] rounded-full animate-spin" />
+                        <div className="w-5 h-5 border-2 border-[#E53935]/30 border-t-[#E53935] rounded-full animate-spin" />
                     ) : (
                         "Complete Setup"
                     )}

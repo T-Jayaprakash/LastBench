@@ -25,15 +25,21 @@ export type VoteType = 'agree' | 'neutral' | 'disagree';
 export interface DebateTake {
     id: string;
     debateId: string;
+    authorUserId?: string;
     authorAnonId: string;
+    authorDisplayName?: string;
     authorAvatarColor: string;
+    authorAvatarUrl?: string;
     text: string;
     type: 'text' | 'emoji' | 'gif' | 'sticker';
     upvotes: number;
     downvotes: number;
     userVote?: 'up' | 'down' | null;
     replyCount: number;
+    replyToId?: string | null;
     createdAt: Date;
+    isEdited?: boolean;
+    isDeleted?: boolean;
     isSpicy?: boolean; // High velocity
 }
 

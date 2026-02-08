@@ -793,6 +793,7 @@ export const toggleLike = async (postId: string): Promise<number> => {
         const postRef = doc(db, COLLECTIONS.POSTS, postId);
 
         let newCount = 0;
+        let postAuthorId: string | null = null;
 
         if (interactionDoc.exists()) {
             // UNLIKE - Remove interaction
@@ -823,6 +824,7 @@ export const toggleLike = async (postId: string): Promise<number> => {
 
                 const currentCount = postDoc.data().likes_count || 0;
                 newCount = currentCount + 1;
+                postAuthorId = postDoc.data().author_id;
 
                 // Add the interaction with deterministic ID
                 transaction.set(interactionRef, {
@@ -838,7 +840,25 @@ export const toggleLike = async (postId: string): Promise<number> => {
 
             console.log(`✅ Like successful. New count: ${newCount}`);
 
-            // Notification trigger removed (Handled by Cloud Functions)
+            // Create notification (only if not liking own post)
+            if (postAuthorId && postAuthorId !== user.userId) {
+                try {
+                    const notificationsRef = collection(db, COLLECTIONS.NOTIFICATIONS);
+                    await addDoc(notificationsRef, {
+                        user_id: postAuthorId, // who receives the notification
+                        actor_id: user.userId, // who performed the action
+                        actor_name: user.displayName,
+                        actor_avatar: user.avatarUrl || null,
+                        type: 'like',
+                        post_id: postId,
+                        read: false,
+                        created_at: serverTimestamp(),
+                    });
+                    console.log('🔔 Like notification created');
+                } catch (notifErr) {
+                    console.warn('Failed to create notification:', notifErr);
+                }
+            }
         }
 
         return newCount;
@@ -911,26 +931,35 @@ export const addComment = async (postId: string, text: string, parentId?: string
     const commentsRef = collection(db, COLLECTIONS.COMMENTS);
     const docRef = await addDoc(commentsRef, commentData);
 
-    // Increment comment count on post
+    // Increment comment count on post and get post author
     const postRef = doc(db, COLLECTIONS.POSTS, postId);
+    const postDoc = await getDoc(postRef);
+    const postAuthorId = postDoc.exists() ? postDoc.data()?.author_id : null;
+
     await updateDoc(postRef, {
         comments_count: increment(1)
     });
 
-    // Trigger notification
-    // Trigger notification (Handled by Cloud Functions now - comment out to avoid duplicates)
-    /*
-    fetch('/api/send-push', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            type: 'comment',
-            actorUserId: user.userId,
-            postId: postId,
-            data: { text: text }
-        })
-    }).catch(e => console.error('Push trigger failed', e));
-    */
+    // Create notification (only if not commenting on own post)
+    if (postAuthorId && postAuthorId !== user.userId) {
+        try {
+            const notificationsRef = collection(db, COLLECTIONS.NOTIFICATIONS);
+            await addDoc(notificationsRef, {
+                user_id: postAuthorId, // who receives the notification
+                actor_id: user.userId, // who performed the action
+                actor_name: user.displayName,
+                actor_avatar: user.avatarUrl || null,
+                type: 'comment',
+                post_id: postId,
+                content: text.substring(0, 100), // First 100 chars of comment
+                read: false,
+                created_at: serverTimestamp(),
+            });
+            console.log('🔔 Comment notification created');
+        } catch (notifErr) {
+            console.warn('Failed to create notification:', notifErr);
+        }
+    }
 
     // Return the created comment
     return {
@@ -1483,9 +1512,9 @@ export const getActiveDebate = async (college: string): Promise<Debate | null> =
             limit(1)
         );
         const snapshot = await getDocs(q);
-        
+
         if (snapshot.empty) return null;
-        
+
         const data = snapshot.docs[0].data();
         return {
             id: snapshot.docs[0].id,
@@ -1517,12 +1546,12 @@ export const createDebate = async (topic: string, college: string): Promise<stri
             where('isActive', '==', true)
         );
         const activeSnap = await getDocs(activeQ);
-        
+
         const batch = writeBatch(db);
         activeSnap.forEach(d => {
             batch.update(d.ref, { isActive: false });
         });
-        
+
         const newDebateRef = doc(collection(db, COLLECTIONS.DEBATES));
         batch.set(newDebateRef, {
             topic,
@@ -1533,7 +1562,7 @@ export const createDebate = async (topic: string, college: string): Promise<stri
             totalTakes: 0,
             search_keywords: topic.toLowerCase().split(' ')
         });
-        
+
         await batch.commit();
         return newDebateRef.id;
     } catch (e) {
@@ -1551,7 +1580,7 @@ export const getDebateTakes = async (debateId: string): Promise<DebateTake[]> =>
         // Order by votes or recent? Let's do recent first
         const q = query(takesRef, orderBy('created_at', 'desc'), limit(50));
         const snapshot = await getDocs(q);
-        
+
         return snapshot.docs.map(doc => {
             const data = doc.data();
             return {
@@ -1582,10 +1611,10 @@ export const postDebateTake = async (debateId: string, text: string, type: 'text
 
         const takesRef = collection(db, COLLECTIONS.DEBATES, debateId, 'takes');
         const debateRef = doc(db, COLLECTIONS.DEBATES, debateId);
-        
+
         const batch = writeBatch(db);
         const newTakeRef = doc(takesRef);
-        
+
         batch.set(newTakeRef, {
             author_id: user.userId, // Secure but internal
             author_anon_id: user.anonId,
@@ -1596,11 +1625,11 @@ export const postDebateTake = async (debateId: string, text: string, type: 'text
             downvotes: 0,
             created_at: serverTimestamp()
         });
-        
+
         batch.update(debateRef, {
             totalTakes: increment(1)
         });
-        
+
         await batch.commit();
         return true;
     } catch (e) {

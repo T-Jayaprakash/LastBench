@@ -36,7 +36,7 @@ const BannerDetailsModal = lazy(() => import('./components/BannerDetailsModal'))
 const SplashScreen = ({ isFinished }: { isFinished: boolean }) => {
     if (!isFinished) {
         return (
-            <div className={`fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#4a0404] overflow-hidden`}>
+            <div className={`fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#E53935] overflow-hidden`}>
                 <div className="absolute inset-0 opacity-40 blur-[100px] animate-pulse"
                     style={{
                         background: 'radial-gradient(circle at 50% 50%, #800000 0%, transparent 70%)',

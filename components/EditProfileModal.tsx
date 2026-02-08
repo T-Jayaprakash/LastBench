@@ -70,19 +70,27 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ user, onClose, onSa
     };
 
     return (
-        <div className="fixed inset-0 z-[60] bg-black/80 flex items-center justify-center p-4 animate-fade-in backdrop-blur-sm">
-            <div className="w-full max-w-sm bg-[#1a1a1a] rounded-3xl overflow-hidden border border-white/10 shadow-2xl relative animate-scale-in">
-
-                {/* Header */}
-                <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
-                    <button onClick={onClose} className="p-2 -ml-2 text-white hover:bg-white/10 rounded-full transition-colors">
-                        <XMarkIcon className="w-6 h-6" />
+        <div className="fixed inset-0 z-[60] bg-black/70 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in">
+            {/* MacBook-style popup with glassmorphism */}
+            <div className="w-full max-w-md bg-gradient-to-b from-[#2a2a2a] to-[#1a1a1a] rounded-2xl overflow-hidden shadow-2xl relative animate-scale-in ring-1 ring-white/20"
+                style={{
+                    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255,255,255,0.1), inset 0 1px 0 rgba(255,255,255,0.1)'
+                }}
+            >
+                {/* macOS-style title bar */}
+                <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-b from-white/[0.08] to-transparent border-b border-white/10">
+                    {/* Traffic lights - close button */}
+                    <button
+                        onClick={onClose}
+                        className="w-3 h-3 rounded-full bg-red-500 hover:bg-red-400 transition-colors flex items-center justify-center group"
+                    >
+                        <XMarkIcon className="w-2 h-2 text-red-900 opacity-0 group-hover:opacity-100 transition-opacity" />
                     </button>
-                    <h2 className="text-white font-bold text-lg">Edit Profile</h2>
+                    <h2 className="text-white/90 font-semibold text-[15px]">Edit Profile</h2>
                     <button
                         onClick={handleSaveClick}
                         disabled={isUploading || !editedName.trim()}
-                        className="text-blue-500 font-bold text-sm disabled:opacity-50"
+                        className="text-blue-400 font-semibold text-sm hover:text-blue-300 disabled:opacity-40 disabled:hover:text-blue-400 transition-colors"
                     >
                         Save
                     </button>

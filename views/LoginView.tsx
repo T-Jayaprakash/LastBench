@@ -48,7 +48,7 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin, onNavigateToSignUp }) =>
 
     return (
         <div className="flex flex-col items-center justify-center min-h-screen relative overflow-hidden"
-            style={{ backgroundColor: '#4a0404' }}
+            style={{ backgroundColor: '#E53935' }}
         >
             {/* Animated background gradient - Dark Red Theme */}
             <div className="absolute inset-0 opacity-40">
@@ -144,7 +144,7 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin, onNavigateToSignUp }) =>
                     <button
                         type="submit"
                         disabled={!email.trim() || !password.trim() || isLoading}
-                        className="relative w-full bg-white text-[#4a0404] font-bold py-4 px-6 rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-black/30 hover:bg-white/90 active:scale-[0.98] overflow-hidden group"
+                        className="relative w-full bg-white text-[#E53935] font-bold py-4 px-6 rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-black/30 hover:bg-white/90 active:scale-[0.98] overflow-hidden group"
                     >
                         <span className="relative z-10 flex items-center justify-center gap-2">
                             {isLoading && <ArrowPathIcon className="w-5 h-5 animate-spin" />}
