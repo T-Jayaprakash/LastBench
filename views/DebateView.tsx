@@ -1,229 +1,356 @@
-
-import React, { useState, useEffect } from 'react';
-import { User, Debate, DebateTake } from '../types';
-import * as firestoreService from '../services/firestoreService';
-import { auth } from '../services/firebase';
-import { PlusCircleIcon } from '../components/Icons';
+import React, { useState, useEffect, useRef } from 'react';
+import { User, Debate, DebateTake, VoteType } from '../types';
+import * as debateService from '../services/debateService';
+import { getAuth } from 'firebase/auth';
+import { Haptics, ImpactStyle } from '@capacitor/haptics';
 
 interface DebateViewProps {
     user: User | null;
+    isActive?: boolean;
 }
 
-const DebateView: React.FC<DebateViewProps> = ({ user }) => {
+const DebateView: React.FC<DebateViewProps> = ({ user, isActive = false }) => {
     const [debate, setDebate] = useState<Debate | null>(null);
     const [takes, setTakes] = useState<DebateTake[]>([]);
-    const [loading, setLoading] = useState(true);
     const [newTake, setNewTake] = useState('');
+    const [isPosting, setIsPosting] = useState(false);
     const [isAdmin, setIsAdmin] = useState(false);
     const [creatingTopic, setCreatingTopic] = useState('');
-    const [isPosting, setIsPosting] = useState(false);
-    const [adminCollege, setAdminCollege] = useState(''); // Allow admin to switch colleges
+    const [adminCollege, setAdminCollege] = useState('');
+    const [myVote, setMyVote] = useState<VoteType | null>(null);
+    const [replyingTo, setReplyingTo] = useState<DebateTake | null>(null);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+    const auth = getAuth();
+
+    // -- Admin Check --
     useEffect(() => {
-        const checkAdmin = () => {
-            // Hardcoded admin check as requested + collection check later if needed
-            const email = auth.currentUser?.email;
-            if (email?.toLowerCase() === 'jayaprakash.5388@gmail.com') {
-                setIsAdmin(true);
-            }
-        };
-        checkAdmin();
-    }, [user]);
-
-    useEffect(() => {
-        if (!user) return;
-        const collegeToFetch = (isAdmin && adminCollege) ? adminCollege : user.college || '';
-        if (!collegeToFetch) return;
-
-        const loadDebate = async () => {
-            setLoading(true);
-            const activeDebate = await firestoreService.getActiveDebate(collegeToFetch);
-            setDebate(activeDebate);
-
-            if (activeDebate) {
-                const fetchedTakes = await firestoreService.getDebateTakes(activeDebate.id);
-                setTakes(fetchedTakes);
-            } else {
-                setTakes([]);
-            }
-            setLoading(false);
-        };
-        loadDebate();
-    }, [user, isAdmin, adminCollege]);
-
-    const handleCreateDebate = async () => {
-        if (!creatingTopic.trim() || !user) return;
-        try {
-            const targetCollege = adminCollege || user.college || 'Unknown';
-            await firestoreService.createDebate(creatingTopic, targetCollege);
-            setCreatingTopic('');
-            // Reload
-            const activeDebate = await firestoreService.getActiveDebate(targetCollege);
-            setDebate(activeDebate);
-        } catch (e) {
-            alert('Failed to create debate');
+        const email = auth.currentUser?.email;
+        if (email?.toLowerCase() === 'jayaprakash.5388@gmail.com') {
+            setIsAdmin(true);
         }
+    }, [auth.currentUser]);
+
+    // -- Fetch Debate --
+    useEffect(() => {
+        if (!user?.college) return;
+        const fetchDebate = async () => {
+            const active = await debateService.getActiveDebate(user.college!);
+            if (active) {
+                setDebate(active);
+                const unsub = debateService.subscribeToDebate(active.id, (updated) => setDebate(updated));
+                const fetchedTakes = await debateService.getDebateTakes(active.id);
+                setTakes(fetchedTakes);
+                return () => unsub();
+            } else {
+                setDebate(null);
+            }
+        };
+        fetchDebate();
+    }, [user?.college]);
+
+    // -- Auto-resize Composer --
+    useEffect(() => {
+        if (textareaRef.current) {
+            textareaRef.current.style.height = 'auto';
+            textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px';
+        }
+    }, [newTake]);
+
+    // -- Interaction Handlers --
+    const triggerHaptic = () => {
+        try { Haptics.impact({ style: ImpactStyle.Light }); } catch (e) { }
+    };
+
+    const handleVoteDebate = async (type: VoteType) => {
+        if (!debate) return;
+        triggerHaptic();
+        setMyVote(type);
+        await debateService.voteOnDebate(debate.id, type);
     };
 
     const handlePostTake = async () => {
-        if (!newTake.trim() || !debate) return;
+        if (!newTake.trim() || !user || !debate) return;
         setIsPosting(true);
-        const success = await firestoreService.postDebateTake(debate.id, newTake);
+        triggerHaptic();
+
+        const success = await debateService.postDebateTake(debate.id, newTake, 'text', replyingTo?.id);
+
         if (success) {
+            const tempTake: DebateTake = {
+                id: 'temp-' + Date.now(),
+                debateId: debate.id,
+                authorAnonId: user.anonId,
+                authorAvatarColor: user.avatarColor,
+                text: newTake,
+                type: 'text',
+                upvotes: 0,
+                downvotes: 0,
+                replyCount: 0,
+                createdAt: new Date(),
+                // @ts-ignore
+                replyToId: replyingTo?.id || null
+            };
+            setTakes([tempTake, ...takes]);
             setNewTake('');
-            // Refresh takes
-            const fetchedTakes = await firestoreService.getDebateTakes(debate.id);
-            setTakes(fetchedTakes);
+            setReplyingTo(null);
         }
         setIsPosting(false);
     };
 
-    if (loading) {
-        return (
-            <div className="flex items-center justify-center h-full bg-black text-white">
-                <div className="animate-spin h-8 w-8 border-2 border-accent-primary border-t-transparent rounded-full"></div>
-            </div>
-        );
-    }
+    const handleTakeVote = async (takeId: string, type: 'up' | 'down') => {
+        if (!debate) return;
+        triggerHaptic();
+        setTakes(prev => prev.map(t => {
+            if (t.id === takeId) {
+                return {
+                    ...t,
+                    upvotes: type === 'up' ? t.upvotes + 1 : t.upvotes,
+                    downvotes: type === 'down' ? t.downvotes + 1 : t.downvotes
+                };
+            }
+            return t;
+        }));
+        await debateService.voteOnTake(debate.id, takeId, type);
+    };
+
+    const handleCreateDebate = async () => {
+        if (!creatingTopic.trim()) return;
+        const targetCollege = adminCollege || user?.college || '';
+        if (!targetCollege) { alert("No college target"); return; }
+        await debateService.createDebate(creatingTopic, targetCollege);
+        setCreatingTopic('');
+        window.location.reload();
+    };
+
+
+    if (!user) return null;
 
     return (
-        <div className="flex flex-col h-full bg-black text-white relative font-sans">
-            {/* Header */}
-            <div className="p-4 border-b border-gray-900 flex items-center justify-between bg-black/95 backdrop-blur-sm sticky top-0 z-20">
-                <h1 className="text-lg font-bold tracking-tight">
-                    DEBATE
-                </h1>
-                {isAdmin && (
-                    <div className="text-[10px] font-bold text-black bg-white px-2 py-0.5 rounded-full tracking-wider">
-                        ADMIN
-                    </div>
+        <div className="flex flex-col h-full bg-black text-white font-sans relative">
+
+            {/* Minimal Sticky Header */}
+            <div className="flex-shrink-0 sticky top-0 z-30 bg-black/90 backdrop-blur-md border-b border-white/5 px-4 h-14 flex items-center justify-between">
+                <h1 className="text-lg font-bold tracking-tight">Debate</h1>
+                {debate && (
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-red-500 flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse"></span>
+                        Live
+                    </span>
                 )}
             </div>
 
-            {/* Content */}
-            <div className="flex-grow overflow-y-auto pb-40">
+            {/* Main Scroll View */}
+            <div className="flex-1 overflow-y-auto no-scrollbar pb-32">
 
-                {/* Admin Logic: Select College */}
-                {isAdmin && (
-                    <div className="p-4 bg-gray-900/30 border-b border-gray-800">
+                {/* Admin Panel */}
+                {isAdmin && !debate && (
+                    <div className="p-6 border-b border-white/10 space-y-3">
+                        <h3 className="font-bold text-sm text-gray-400">Launch Topic</h3>
                         <input
-                            className="w-full bg-black text-white p-3 rounded-lg text-sm border border-gray-800 focus:border-white transition-colors outline-none"
-                            placeholder="Target College (Admin Only)"
-                            value={adminCollege}
-                            onChange={e => setAdminCollege(e.target.value)}
+                            className="w-full bg-white/5 p-3 rounded-lg text-sm border border-white/10 focus:border-white/30 outline-none"
+                            placeholder="College Name"
+                            value={adminCollege} onChange={e => setAdminCollege(e.target.value)}
                         />
+                        <textarea
+                            className="w-full bg-white/5 p-3 rounded-lg text-sm border border-white/10 focus:border-white/30 outline-none"
+                            placeholder="Topic..."
+                            rows={2}
+                            value={creatingTopic} onChange={e => setCreatingTopic(e.target.value)}
+                        />
+                        <button onClick={handleCreateDebate} className="w-full bg-white text-black font-bold py-3 rounded-lg text-sm">Launch Debate</button>
                     </div>
                 )}
 
                 {debate ? (
                     <>
-                        {/* Topic Header - Minimalist */}
-                        <div className="px-4 py-6 border-b border-gray-900">
-                            <h2 className="text-xl font-bold text-white mb-2 leading-snug">
+                        {/* Topic Section */}
+                        <div className="px-4 py-6 border-b border-white/5">
+                            <h2 className="text-2xl font-bold leading-tight mb-4 text-white">
                                 {debate.topic}
                             </h2>
-                            <div className="flex items-center space-x-2">
-                                <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
-                                <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">
-                                    LIVE IN {debate.college}
-                                </p>
+
+                            {/* Minimalism Opinion Bar */}
+                            <div className="flex items-center gap-1 h-10 bg-white/5 rounded-full p-1 border border-white/5">
+                                <button
+                                    onClick={() => handleVoteDebate('agree')}
+                                    className={`flex-1 h-full rounded-full text-xs font-bold transition-all ${myVote === 'agree' ? 'bg-[#00ba7c] text-white' : 'text-gray-400 hover:bg-white/5'}`}
+                                >
+                                    Agree {debate.stats?.agree ? `(${debate.stats.agree})` : ''}
+                                </button>
+                                <button
+                                    onClick={() => handleVoteDebate('neutral')}
+                                    className={`flex-1 h-full rounded-full text-xs font-bold transition-all ${myVote === 'neutral' ? 'bg-gray-600 text-white' : 'text-gray-400 hover:bg-white/5'}`}
+                                >
+                                    Neutral
+                                </button>
+                                <button
+                                    onClick={() => handleVoteDebate('disagree')}
+                                    className={`flex-1 h-full rounded-full text-xs font-bold transition-all ${myVote === 'disagree' ? 'bg-[#f4212e] text-white' : 'text-gray-400 hover:bg-white/5'}`}
+                                >
+                                    Disagree {debate.stats?.disagree ? `(${debate.stats.disagree})` : ''}
+                                </button>
                             </div>
                         </div>
 
-                        {/* Takes List - Clean Feed Style */}
-                        <div className="px-4">
-                            {takes.length === 0 ? (
-                                <div className="py-20 text-center">
-                                    <p className="text-gray-600 text-sm">Start the conversation...</p>
-                                </div>
-                            ) : (
-                                takes.map(take => (
-                                    <div key={take.id} className="py-4 border-b border-gray-900/50 flex space-x-3">
-                                        <div
-                                            className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-[10px] font-bold text-white"
-                                            style={{ backgroundColor: take.authorAvatarColor }}
-                                        >
-                                            {take.authorAnonId.substring(0, 2)}
-                                        </div>
+                        {/* Takes Feed (Threads Style) */}
+                        <div className="divide-y divide-white/5">
+                            {takes.map(take => {
+                                const isMe = take.authorAnonId === user?.anonId;
+                                // @ts-ignore
+                                const isReply = !!take.replyToId;
 
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-baseline justify-between">
-                                                <span className="text-sm font-semibold text-gray-400">{take.authorAnonId}</span>
-                                                <span className="text-[10px] text-gray-700">Just now</span>
+                                return (
+                                    <div key={take.id} className="px-4 py-4 hover:bg-white/[0.02] transition-colors relative">
+                                        {/* Reply Context Line */}
+                                        {isReply && <div className="absolute left-[26px] top-0 bottom-full w-[2px] bg-white/10"></div>}
+
+                                        <div className="flex gap-3">
+                                            {/* Avatar */}
+                                            <div
+                                                className="w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center text-[10px] font-bold text-black/60 shadow-inner"
+                                                style={{ backgroundColor: take.authorAvatarColor || '#333' }}
+                                            >
+                                                {/* Simple Initials */}
+                                                {(take.authorAnonId || 'AN').substring(0, 2).toUpperCase()}
                                             </div>
 
-                                            <p className="text-[15px] text-gray-200 mt-1 leading-relaxed whitespace-pre-wrap break-words">
-                                                {take.text}
-                                            </p>
+                                            {/* Content */}
+                                            <div className="flex-1 min-w-0">
+                                                {/* Header Line */}
+                                                <div className="flex items-center justify-between mb-0.5">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="font-bold text-[15px] text-white">
+                                                            {isMe ? 'You' : (take.authorAnonId || 'Anonymous')}
+                                                        </span>
+                                                        <span className="text-gray-500 text-sm">•</span>
+                                                        <span className="text-gray-500 text-sm">
+                                                            {take.createdAt instanceof Date ?
+                                                                take.createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }).toLowerCase()
+                                                                : 'now'
+                                                            }
+                                                        </span>
+                                                    </div>
 
-                                            {/* Minimal Actions */}
-                                            <div className="mt-2 flex items-center space-x-4">
-                                                <button className="text-gray-600 hover:text-white transition-colors text-xs font-medium">
-                                                    Reply
-                                                </button>
-                                                <button className="text-gray-600 hover:text-white transition-colors text-xs font-medium">
-                                                    Like
-                                                </button>
+                                                    {/* More Menu (Visual) */}
+                                                    <button className="text-gray-600 hover:text-white transition-colors">
+                                                        •••
+                                                    </button>
+                                                </div>
+
+                                                {/* Take Text */}
+                                                <p className="text-[15px] leading-normal text-gray-200 whitespace-pre-wrap break-words font-light">
+                                                    {take.text}
+                                                </p>
+
+                                                {/* Actions Row */}
+                                                <div className="flex items-center gap-6 mt-3">
+
+                                                    {/* Upvote */}
+                                                    <button
+                                                        onClick={() => handleTakeVote(take.id, 'up')}
+                                                        className="flex items-center gap-1.5 group"
+                                                    >
+                                                        <div className="p-1.5 rounded-full group-hover:bg-[#f91880]/10 transition-colors">
+                                                            <svg className={`w-4 h-4 ${take.upvotes > 0 ? 'text-[#f91880] fill-current' : 'text-gray-500'}`} viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" fill="none">
+                                                                <path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                                                            </svg>
+                                                        </div>
+                                                        {take.upvotes > 0 && <span className="text-xs text-gray-500 group-hover:text-[#f91880]">{take.upvotes}</span>}
+                                                    </button>
+
+                                                    {/* Reply */}
+                                                    <button
+                                                        onClick={() => {
+                                                            setReplyingTo(take);
+                                                            textareaRef.current?.focus();
+                                                        }}
+                                                        className="flex items-center gap-1.5 group"
+                                                    >
+                                                        <div className="p-1.5 rounded-full group-hover:bg-[#1d9bf0]/10 transition-colors">
+                                                            <svg className="w-4 h-4 text-gray-500 group-hover:text-[#1d9bf0]" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" fill="none">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                                                            </svg>
+                                                        </div>
+                                                        {take.replyCount > 0 && <span className="text-xs text-gray-500 group-hover:text-[#1d9bf0]">{take.replyCount}</span>}
+                                                    </button>
+
+                                                    {/* Downvote */}
+                                                    <button
+                                                        onClick={() => handleTakeVote(take.id, 'down')}
+                                                        className="flex items-center gap-1.5 group"
+                                                    >
+                                                        <div className="p-1.5 rounded-full group-hover:bg-white/10 transition-colors">
+                                                            <svg className="w-4 h-4 text-gray-500 group-hover:text-white" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" fill="none">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                                                            </svg>
+                                                        </div>
+                                                    </button>
+
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
-                                ))
+                                );
+                            })}
+
+                            {/* Empty State */}
+                            {takes.length === 0 && (
+                                <div className="py-20 text-center px-8">
+                                    <div className="text-4xl mb-4 opacity-20">💬</div>
+                                    <p className="text-gray-500 text-sm">No takes yet. Start the conversation.</p>
+                                </div>
                             )}
                         </div>
                     </>
                 ) : (
-                    <div className="flex flex-col items-center justify-center h-[50vh] text-center p-6">
-                        <h3 className="text-lg font-medium text-white mb-1">No Active Debate</h3>
-                        <p className="text-gray-500 text-sm">Check back later for new topics in {user?.college}</p>
-
-                        {isAdmin && (
-                            <div className="mt-8 w-full max-w-xs">
-                                <textarea
-                                    className="w-full bg-[#1A1A1A] border border-gray-800 rounded-lg p-3 text-white focus:outline-none focus:border-white transition-colors text-sm"
-                                    placeholder="Enter debate topic..."
-                                    rows={3}
-                                    value={creatingTopic}
-                                    onChange={e => setCreatingTopic(e.target.value)}
-                                />
-                                <button
-                                    onClick={handleCreateDebate}
-                                    className="w-full mt-3 bg-white text-black font-bold py-3 rounded-lg hover:bg-gray-200 transition-colors text-sm"
-                                >
-                                    Launch Debate
-                                </button>
-                            </div>
-                        )}
+                    <div className="h-full flex flex-col items-center justify-center p-8 text-center text-gray-500">
+                        <h3 className="text-lg font-bold text-gray-300 mb-2">No Active Debate</h3>
+                        <p className="text-sm">Check back later for today's topic.</p>
                     </div>
                 )}
             </div>
 
-            {/* Fixed Input - Raised above Bottom Navigation */}
-            {debate && (
-                <div className="fixed bottom-[56px] left-0 right-0 bg-black border-t border-gray-900 p-3 z-30 pb-[calc(env(safe-area-inset-bottom)+0.5rem)]">
-                    <div className="flex items-end space-x-2">
-                        <textarea
-                            value={newTake}
-                            onChange={e => setNewTake(e.target.value)}
-                            placeholder="Add to the debate..."
-                            className="flex-grow bg-[#121212] text-white rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-gray-700 transition-all resize-none max-h-24"
-                            rows={1}
-                            style={{ minHeight: '44px' }}
-                        />
-                        <button
-                            disabled={!newTake.trim() || isPosting}
-                            onClick={handlePostTake}
-                            className={`p-3 rounded-full flex-shrink-0 ${!newTake.trim() ? 'text-gray-600 bg-transparent' : 'bg-white text-black'} transition-colors duration-200`}
-                        >
-                            {isPosting ? (
-                                <div className="w-5 h-5 border-2 border-black border-t-transparent rounded-full animate-spin"></div>
-                            ) : (
-                                <div className={!newTake.trim() ? 'opacity-50' : ''}>
-                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-                                        <path d="M3.478 2.404a.75.75 0 0 0-.926.941l2.432 7.905H13.5a.75.75 0 0 1 0 1.5H4.984l-2.432 7.905a.75.75 0 0 0 .926.94 60.519 60.519 0 0 0 18.445-8.986.75.75 0 0 0 0-1.218A60.517 60.517 0 0 0 3.478 2.404Z" />
-                                    </svg>
-                                </div>
-                            )}
-                        </button>
+            {/* Composer (Absolute Overlay - Moves with Swipe) */}
+            {isActive && debate && (
+                <div className="absolute bottom-16 left-0 right-0 bg-black border-t border-white/10 px-4 py-3 pb-2 transition-all z-[100]">
+
+                    {/* Reply Context */}
+                    {replyingTo && (
+                        <div className="flex items-center justify-between mb-2 px-1">
+                            <span className="text-xs text-gray-400">
+                                Replying to <span className="text-cyan-400 font-bold">{replyingTo.authorAnonId || 'Anonymous'}</span>
+                            </span>
+                            <button onClick={() => setReplyingTo(null)} className="text-gray-500 hover:text-white text-xs">✕ Cancel</button>
+                        </div>
+                    )}
+
+                    <div className="flex items-end gap-3">
+                        <div className="flex-1 bg-white/[0.08] rounded-2xl min-h-[44px] border border-transparent focus-within:border-white/20 transition-all flex flex-col">
+                            <textarea
+                                ref={textareaRef}
+                                value={newTake}
+                                onChange={e => setNewTake(e.target.value)}
+                                placeholder="Add to the debate..."
+                                className="w-full bg-transparent text-white text-[15px] placeholder-gray-500 p-3 pt-3 focus:outline-none resize-none max-h-32"
+                                rows={1}
+                                style={{ minHeight: '44px' }}
+                            />
+                        </div>
+
+                        <div className="flex items-center gap-1 mb-0.5">
+                            {/* Minimal Send Button */}
+                            <button
+                                disabled={!newTake.trim() || isPosting}
+                                onClick={handlePostTake}
+                                className={`h-10 px-4 rounded-full font-bold text-sm transition-all ${newTake.trim()
+                                    ? 'bg-white text-black hover:bg-gray-200'
+                                    : 'bg-white/10 text-gray-500 cursor-not-allowed'
+                                    }`}
+                            >
+                                {isPosting ? '...' : 'Post'}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

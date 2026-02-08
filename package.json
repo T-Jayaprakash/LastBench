@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@capacitor/app": "^7.1.0",
+    "@capacitor/haptics": "^7.0.3",
     "@capacitor/ios": "^7.4.4",
     "@capacitor/local-notifications": "^7.0.3",
     "@capacitor/preferences": "^7.0.2",

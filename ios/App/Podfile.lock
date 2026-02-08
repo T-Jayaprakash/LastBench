@@ -4,6 +4,8 @@ PODS:
   - CapacitorApp (7.1.0):
     - Capacitor
   - CapacitorCordova (7.4.4)
+  - CapacitorHaptics (7.0.3):
+    - Capacitor
   - CapacitorLocalNotifications (7.0.3):
     - Capacitor
   - CapacitorPreferences (7.0.2):
@@ -15,6 +17,7 @@ DEPENDENCIES:
   - "Capacitor (from `../../node_modules/@capacitor/ios`)"
   - "CapacitorApp (from `../../node_modules/@capacitor/app`)"
   - "CapacitorCordova (from `../../node_modules/@capacitor/ios`)"
+  - "CapacitorHaptics (from `../../node_modules/@capacitor/haptics`)"
   - "CapacitorLocalNotifications (from `../../node_modules/@capacitor/local-notifications`)"
   - "CapacitorPreferences (from `../../node_modules/@capacitor/preferences`)"
   - "CapacitorPushNotifications (from `../../node_modules/@capacitor/push-notifications`)"
@@ -26,6 +29,8 @@ EXTERNAL SOURCES:
     :path: "../../node_modules/@capacitor/app"
   CapacitorCordova:
     :path: "../../node_modules/@capacitor/ios"
+  CapacitorHaptics:
+    :path: "../../node_modules/@capacitor/haptics"
   CapacitorLocalNotifications:
     :path: "../../node_modules/@capacitor/local-notifications"
   CapacitorPreferences:
@@ -37,10 +42,11 @@ SPEC CHECKSUMS:
   Capacitor: 09d9ff8e9618e8c4b3cab2bbee34a17215dd2fef
   CapacitorApp: 846d4b4a1dbb19dd1e9029c08ba6f028aa7be862
   CapacitorCordova: bf648a636f3c153f652d312ae145fb508b6ffced
+  CapacitorHaptics: d17da7dd984cae34111b3f097ccd3e21f9feec62
   CapacitorLocalNotifications: a57a6ff87c1f69a00598f9b97cf52eba8f9ff867
   CapacitorPreferences: b583b5deb74e564c35968189d25d32c0fd41200d
   CapacitorPushNotifications: 729ade0d2791ec1969feaf931a15e28d929a6d70
 
-PODFILE CHECKSUM: 4b265023e3892d77f7d7444c97ee21f865a3c154
+PODFILE CHECKSUM: 159ba9888468119ce5a74c0bacc584d1864f52d4
 
 COCOAPODS: 1.16.2

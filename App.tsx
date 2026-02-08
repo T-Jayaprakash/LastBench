@@ -30,6 +30,7 @@ const UpdateModal = lazy(() => import('./components/UpdateModal'));
 const SettingsView = lazy(() => import('./views/SettingsView'));
 const ReelsView = lazy(() => import('./views/ReelsView'));
 const DebateView = lazy(() => import('./views/DebateView'));
+const BannerDetailsModal = lazy(() => import('./components/BannerDetailsModal'));
 
 
 const SplashScreen = ({ isFinished }: { isFinished: boolean }) => {
@@ -79,6 +80,7 @@ const AppContent: React.FC = () => {
     const [latestPost, setLatestPost] = useState<Post | null>(null);
     const [deletedPostId, setDeletedPostId] = useState<string | null>(null);
     const [viewingImages, setViewingImages] = useState<string[] | null>(null);
+    const [viewingBanner, setViewingBanner] = useState<Post | null>(null);
     const [viewingImageIndex, setViewingImageIndex] = useState(0);
     const historyStackRef = useRef<Array<{ view: View; hasModal: boolean }>>([{ view: 'home', hasModal: false }]);
     const [editingPost, setEditingPost] = useState<Post | null>(null);
@@ -88,11 +90,19 @@ const AppContent: React.FC = () => {
     const [showPWAInstall, setShowPWAInstall] = useState(true);
     const unreadCount = useUnreadNotifications(user?.userId);
 
+    // Track last swipe view to keep it active when hidden
+    const lastSwipeView = useRef<View>('home');
+
     // Check if any modal is open (for disabling swipe)
-    const isModalOpen = !!(commentingPost || reportingPost || optionsPost || editingPost || viewingImages);
+    const isModalOpen = !!(commentingPost || reportingPost || optionsPost || editingPost || viewingImages || viewingBanner);
 
     // Use Toast for share notifications
     const { showToast } = useToast();
+
+    // Update last swipe view ref whenever currentView changes to a swipeable view
+    if (SWIPEABLE_VIEWS.includes(currentView)) {
+        lastSwipeView.current = currentView;
+    }
 
     const handleShareSuccess = (message: string) => {
         showToast(message, 'success');
@@ -264,6 +274,12 @@ const AppContent: React.FC = () => {
         setViewingImageIndex(index);
     };
 
+    const handleShowBanner = (post: Post) => {
+        window.history.pushState({ modal: 'banner', view: currentView }, '');
+        historyStackRef.current.push({ view: currentView, hasModal: true });
+        setViewingBanner(post);
+    };
+
     const handleCloseComments = () => {
         setCommentingPost(null);
         window.history.back();
@@ -284,6 +300,11 @@ const AppContent: React.FC = () => {
 
     const handleCloseImages = () => {
         setViewingImages(null);
+        window.history.back();
+    };
+
+    const handleCloseBanner = () => {
+        setViewingBanner(null);
         window.history.back();
     };
 
@@ -314,6 +335,10 @@ const AppContent: React.FC = () => {
             }
             if (editingPost) {
                 setEditingPost(null);
+                return;
+            }
+            if (viewingBanner) {
+                setViewingBanner(null);
                 return;
             }
 
@@ -353,6 +378,10 @@ const AppContent: React.FC = () => {
                 handleCloseEdit();
                 return;
             }
+            if (viewingBanner) {
+                handleCloseBanner();
+                return;
+            }
 
             // If not on home view, navigate to home
             if (currentView !== 'home') {
@@ -385,7 +414,7 @@ const AppContent: React.FC = () => {
             window.removeEventListener('popstate', onPopState);
             if (backButtonListener) backButtonListener.remove();
         };
-    }, [currentView, viewingImages, commentingPost, reportingPost, optionsPost, editingPost]);
+    }, [currentView, viewingImages, commentingPost, reportingPost, optionsPost, editingPost, viewingBanner]);
 
     const handleShowEdit = (post: Post) => {
         setOptionsPost(null); // Close options first (don't call handleCloseOptions to avoid double history.back)
@@ -455,11 +484,11 @@ const AppContent: React.FC = () => {
     return (
         <div className="flex flex-col h-screen w-screen max-w-md mx-auto bg-background dark:bg-dark-background overflow-hidden relative shadow-2xl">
             <main className="flex-grow overflow-hidden relative">
-                {/* Swipeable Views Container */}
-                {isSwipeableView && (
+                {/* Swipeable Views Container - ALWAYS MOUNTED to prevent re-fetching */}
+                <div className="h-full w-full" style={{ display: isSwipeableView ? 'block' : 'none' }}>
                     <SwipeableViews
                         views={SWIPEABLE_VIEWS}
-                        currentView={currentView}
+                        currentView={SWIPEABLE_VIEWS.includes(currentView) ? currentView : lastSwipeView.current}
                         onViewChange={handleSwipeViewChange}
                         disabled={isModalOpen}
                     >
@@ -474,11 +503,12 @@ const AppContent: React.FC = () => {
                             updatedPost={updatedPost}
                             onNotificationClick={() => navigateTo('notifications')}
                             onShareSuccess={handleShareSuccess}
+                            onBannerClick={handleShowBanner}
                         />
 
                         {/* Debate (was Reels) */}
                         <Suspense fallback={null}>
-                            <DebateView user={user} />
+                            <DebateView user={user} isActive={currentView === 'debate'} />
                         </Suspense>
 
                         {/* Notifications */}
@@ -497,7 +527,7 @@ const AppContent: React.FC = () => {
                             onLogout={handleLogout}
                         />
                     </SwipeableViews>
-                )}
+                </div>
 
                 {/* Non-swipeable views */}
                 {currentView === 'create' && (
@@ -576,6 +606,19 @@ const AppContent: React.FC = () => {
             {/* PWA Install Prompt */}
             {showPWAInstall && (
                 <PWAInstallPrompt onDismiss={() => setShowPWAInstall(false)} />
+            )}
+
+            {/* Banner Details Modal - High Z-Index to cover everything */}
+            {viewingBanner && (
+                <div className="fixed inset-0 z-[100]">
+                    <Suspense fallback={null}>
+                        <BannerDetailsModal
+                            post={viewingBanner}
+                            onClose={handleCloseBanner}
+                            onViewImage={(url) => handleViewImages([url], 0)}
+                        />
+                    </Suspense>
+                </div>
             )}
         </div>
     );

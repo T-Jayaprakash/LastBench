@@ -137,7 +137,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({ images, initialIndex, onClose
 
     return (
         <div
-            className="fixed inset-0 z-50 bg-black/95 flex flex-col items-center justify-center animate-fade-in touch-none"
+            className="fixed inset-0 z-[200] bg-black/95 flex flex-col items-center justify-center animate-fade-in touch-none"
             onClick={scale === 1 ? onClose : undefined}
         >
             {/* Close Button */}

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import Header from '../components/Header';
 import Feed from '../components/Feed';
 import AdvertisingBanner from '../components/AdvertisingBanner';
@@ -14,6 +14,7 @@ interface HomeFeedProps {
     updatedPost: Post | null;
     onNotificationClick: () => void;
     onShareSuccess: (message: string) => void;
+    onBannerClick?: (post: Post) => void;
 }
 
 const HomeFeed: React.FC<HomeFeedProps> = ({
@@ -25,15 +26,29 @@ const HomeFeed: React.FC<HomeFeedProps> = ({
     deletedPostId,
     updatedPost,
     onNotificationClick,
-    onShareSuccess
+    onShareSuccess,
+    onBannerClick
 }) => {
     return (
         <div className="flex flex-col h-full bg-black relative">
-            <Header user={user} onNotificationClick={onNotificationClick} />
+            <div className="h-full w-full pt-0 overflow-y-auto no-scrollbar" id="feed-container">
 
-            <div className="h-full w-full pt-12 overflow-y-auto no-scrollbar" id="feed-container">
-                <AdvertisingBanner onPostClick={onCommentClick} />
-                <div className="h-4 bg-black"></div>
+                <AdvertisingBanner onPostClick={(post) => {
+                    if (onBannerClick) onBannerClick(post);
+                    else onCommentClick(post);
+                }} />
+
+                {/* College Header */}
+                <div className="px-4 py-3 bg-black border-b border-white/5">
+                    <h2 className="text-white font-bold text-xl leading-tight">
+                        {user?.college || 'Your Campus'}
+                    </h2>
+                    <p className="text-gray-500 text-xs font-medium uppercase tracking-wider mt-1">
+                        Verified Campus Updates
+                    </p>
+                </div>
+
+                <div className="h-2 bg-black"></div>
                 <Feed
                     user={user}
                     onCommentClick={onCommentClick}

@@ -458,9 +458,7 @@ const PostCard: React.FC<PostCardProps> = ({
 
                 {/* Right Actions */}
                 <div className="flex items-center">
-                    <button className="active:scale-95 transition-transform text-white hover:opacity-70">
-                        <BookmarkIcon className="w-[24px] h-[24px] stroke-[1.8px]" />
-                    </button>
+                    {/* Save removed as requested */}
                 </div>
             </div>
 

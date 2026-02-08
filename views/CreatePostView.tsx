@@ -176,9 +176,7 @@ const CreatePostView: React.FC<CreatePostViewProps> = ({ onPostSuccess, onCancel
             {/* Header - Mode Switcher */}
             <div className="flex flex-col bg-black z-20 border-b border-white/5 pb-2">
                 <div className="flex items-center justify-between px-4 h-12">
-                    <button onClick={onCancel} className="text-white p-1 -ml-1">
-                        <XMarkIcon className="w-7 h-7 stroke-[1.5px]" />
-                    </button>
+                    {/* Cancel button removed */}
                     <div className="flex-1"></div>
                     <button
                         onClick={handleSubmit}
@@ -200,22 +198,22 @@ const CreatePostView: React.FC<CreatePostViewProps> = ({ onPostSuccess, onCancel
                     </button>
                     <button
                         onClick={() => { setActiveMode('banner'); setIsPollMode(false); }}
-                        className={`pb-2 text-sm font-semibold transition-colors relative ${activeMode === 'banner' ? 'text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-500' : 'text-gray-500'}`}
+                        className={`pb-2 text-sm font-semibold transition-colors relative ${activeMode === 'banner' ? 'text-transparent bg-clip-text bg-gradient-to-r from-red-400 to-red-600' : 'text-gray-500'}`}
                     >
                         Create Banner 👑
-                        {activeMode === 'banner' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full" />}
+                        {activeMode === 'banner' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-red-400 to-red-600 rounded-full" />}
                     </button>
                 </div>
             </div>
 
             {/* Content Area */}
-            <div className="flex-grow flex flex-col relative px-4 overflow-y-auto no-scrollbar pt-4">
+            <div className="flex-grow flex flex-col relative px-4 overflow-y-auto no-scrollbar pt-4 pb-10">
 
                 {/* Banner Mode Fields */}
                 {activeMode === 'banner' && (
                     <div className="mb-4 animate-fade-in space-y-4">
-                        <div className="bg-gray-900/50 p-4 rounded-xl border border-yellow-500/20">
-                            <label className="block text-xs font-bold text-yellow-500 uppercase tracking-wider mb-2">Banner Headline</label>
+                        <div className="bg-gray-900/50 p-4 rounded-xl border border-red-500/20">
+                            <label className="block text-xs font-bold text-red-500 uppercase tracking-wider mb-2">Banner Headline</label>
                             <input
                                 type="text"
                                 value={bannerTitle}
@@ -227,8 +225,6 @@ const CreatePostView: React.FC<CreatePostViewProps> = ({ onPostSuccess, onCancel
                         </div>
                     </div>
                 )}
-
-                {/* User Info removed as requested */}
 
                 {/* Main Text Input */}
                 <div className="relative w-full min-h-[100px]">
@@ -242,9 +238,63 @@ const CreatePostView: React.FC<CreatePostViewProps> = ({ onPostSuccess, onCancel
                     />
                 </div>
 
+                {/* Media & Poll Toolbar - Immediately below text */}
+                <div className="mt-2 flex items-center gap-4 py-2 border-b border-white/5 pb-4 mb-4">
+                    <input
+                        type="file"
+                        multiple={activeMode === 'post'}
+                        accept="image/*"
+                        ref={fileInputRef}
+                        className="hidden"
+                        onChange={handleImageChange}
+                    />
+
+                    <button
+                        onClick={() => {
+                            setIsPollMode(false);
+                            fileInputRef.current?.click();
+                        }}
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all border ${(!isPollMode && previews.length > 0) || activeMode === 'banner' ? 'border-blue-500/50 bg-blue-500/10 text-blue-400' : 'border-white/10 text-gray-400 hover:text-white hover:bg-white/5'}`}
+                    >
+                        <PhotoIcon className="w-5 h-5 stroke-[1.5px]" />
+                        <span className="text-sm font-medium">Photo</span>
+                    </button>
+
+                    {/* Poll Button - Hidden in Banner Mode */}
+                    {activeMode === 'post' && (
+                        <button
+                            onClick={() => {
+                                if (previews.length > 0) {
+                                    if (confirm('Switching to Poll mode will remove selected images. Continue?')) {
+                                        setPreviews([]);
+                                        setSelectedFiles([]);
+                                        setIsPollMode(true);
+                                    }
+                                } else {
+                                    setIsPollMode(!isPollMode);
+                                }
+                            }}
+                            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all border ${isPollMode ? 'border-[#0095F6]/50 bg-[#0095F6]/10 text-[#0095F6]' : 'border-white/10 text-gray-400 hover:text-white hover:bg-white/5'}`}
+                        >
+                            <ChartBarIcon className="w-5 h-5 stroke-[1.5px]" />
+                            <span className="text-sm font-medium">Poll</span>
+                        </button>
+                    )}
+
+                    <div className="flex-1"></div>
+
+                    {/* Character Count */}
+                    {text.length > 0 && (
+                        <span className={`text-xs font-medium ${charCount > maxChars * 0.9 ? 'text-red-500' : 'text-gray-500'}`}>
+                            {charCount}/{maxChars}
+                        </span>
+                    )}
+                </div>
+
                 {/* Poll Creator (Only in Post Mode) */}
                 {isPollMode && activeMode === 'post' && (
-                    <div className="mt-4 flex flex-col gap-3 animate-fade-in">
+                    <div className="flex flex-col gap-3 animate-fade-in pt-2">
+                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Poll Options</label>
                         {pollOptions.map((option, index) => (
                             <div key={index} className="flex items-center gap-2">
                                 <input
@@ -271,7 +321,7 @@ const CreatePostView: React.FC<CreatePostViewProps> = ({ onPostSuccess, onCancel
 
                 {/* Banner Duration */}
                 {activeMode === 'banner' && (
-                    <div className="mt-4 animate-fade-in">
+                    <div className="mt-1 animate-fade-in">
                         <div className="flex items-center gap-2 mb-2">
                             <ClockIcon className="w-4 h-4 text-gray-400" />
                             <span className="text-gray-400 text-sm">Banner Duration</span>
@@ -282,7 +332,7 @@ const CreatePostView: React.FC<CreatePostViewProps> = ({ onPostSuccess, onCancel
                                     key={duration.value}
                                     onClick={() => setBannerDuration(duration.value)}
                                     className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${bannerDuration === duration.value
-                                        ? 'bg-yellow-600 text-white shadow-lg shadow-yellow-600/20'
+                                        ? 'bg-red-600 text-white shadow-lg shadow-red-600/20'
                                         : 'bg-[#262626] text-gray-300 hover:bg-[#363636]'
                                         }`}
                                 >
@@ -298,7 +348,7 @@ const CreatePostView: React.FC<CreatePostViewProps> = ({ onPostSuccess, onCancel
 
                 {/* Image Previews */}
                 {previews.length > 0 && !isPollMode && (
-                    <div className="mt-6 flex gap-3 overflow-x-auto pb-4 no-scrollbar">
+                    <div className="mt-4 flex gap-3 overflow-x-auto pb-4 no-scrollbar">
                         {previews.map((src, index) => (
                             <div key={index} className="relative flex-shrink-0 w-32 aspect-[4/5] rounded-lg overflow-hidden border border-white/10 bg-gray-900 group">
                                 <img src={src} alt={`Preview ${index}`} className="w-full h-full object-cover" />
@@ -311,62 +361,6 @@ const CreatePostView: React.FC<CreatePostViewProps> = ({ onPostSuccess, onCancel
                             </div>
                         ))}
                     </div>
-                )}
-            </div>
-
-            {/* Bottom Toolbar */}
-            <div className={`p-3 border-t border-white/10 bg-black flex items-center gap-4 ${isPollMode ? 'pb-6' : ''}`}>
-                <input
-                    type="file"
-                    multiple={activeMode === 'post'} // Banner usually 1 image, but allows multiple
-                    accept="image/*"
-                    ref={fileInputRef}
-                    className="hidden"
-                    onChange={handleImageChange}
-                />
-
-                {/* Photo Button */}
-                <button
-                    onClick={() => {
-                        // In banner mode, clicking photo is primary action
-                        setIsPollMode(false);
-                        fileInputRef.current?.click();
-                    }}
-                    className={`p-2 rounded-full transition-all ${(!isPollMode && previews.length > 0) || activeMode === 'banner' ? 'text-blue-400' : 'text-gray-400 hover:text-white'}`}
-                >
-                    <div className="flex items-center gap-2">
-                        <PhotoIcon className="w-7 h-7 stroke-[1.5px]" />
-                        {activeMode === 'banner' && previews.length === 0 && <span className="text-sm font-semibold">Upload Image *</span>}
-                    </div>
-                </button>
-
-                {/* Poll Button - Hidden in Banner Mode */}
-                {activeMode === 'post' && (
-                    <button
-                        onClick={() => {
-                            if (previews.length > 0) {
-                                if (confirm('Switching to Poll mode will remove selected images. Continue?')) {
-                                    setPreviews([]);
-                                    setSelectedFiles([]);
-                                    setIsPollMode(true);
-                                }
-                            } else {
-                                setIsPollMode(!isPollMode);
-                            }
-                        }}
-                        className={`p-2 rounded-full transition-all ${isPollMode ? 'bg-[#0095F6] text-white' : 'text-gray-400 hover:text-white'}`}
-                    >
-                        <ChartBarIcon className="w-7 h-7 stroke-[1.5px]" />
-                    </button>
-                )}
-
-                <div className="flex-1"></div>
-
-                {/* Character Count */}
-                {text.length > 0 && (
-                    <span className={`text-xs font-medium ${charCount > maxChars * 0.9 ? 'text-red-500' : 'text-gray-500'}`}>
-                        {charCount}/{maxChars}
-                    </span>
                 )}
             </div>
         </div>

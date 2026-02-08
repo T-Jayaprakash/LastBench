@@ -242,20 +242,8 @@ const CommentView: React.FC<CommentViewProps> = ({ post, currentUser, onBack }) 
             aria-modal="true"
             role="dialog"
         >
-            {/* Minimal Header */}
-            <header className="flex-shrink-0 flex items-center h-14 px-4 border-b border-white/10 bg-black sticky top-0 z-30">
-                <button
-                    onClick={onBack}
-                    className="p-2 -ml-2 text-white hover:opacity-70 transition-opacity"
-                    aria-label="Back"
-                >
-                    <ArrowLeftIcon className="w-6 h-6 stroke-[2px]" />
-                </button>
-                {/* Empty Center */}
-                <div className="flex-1"></div>
-                {/* Empty Right */}
-                <div className="w-8"></div>
-            </header>
+            {/* Header Removed as requested - relies on gesture/hardware back */}
+            <div className="pt-4"></div>
 
             {/* Content Scroller */}
             <div className="flex-grow overflow-y-auto bg-black pb-20 no-scrollbar" ref={commentsListRef}>

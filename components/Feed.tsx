@@ -107,7 +107,7 @@ const Feed: React.FC<FeedProps> = ({
 
     const itemStyle = variant === 'fullscreen'
         ? "w-full h-full snap-start"
-        : "";
+        : "border-b border-white/5"; // Separator line for home feed
 
     return (
         <div className={containerStyle}>

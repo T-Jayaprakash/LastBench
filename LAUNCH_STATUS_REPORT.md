@@ -1,15 +1,21 @@
 # 🎯 Play Store Launch Status Report
 
-**Generated:** 2026-02-04 11:01 IST  
+**Generated:** 2026-02-06 20:55 IST  
 **App:** Lastbench (GenFess) - Anonymous College Gossip  
-**Current Version:** 2.12.0  
-**Status:** ⚠️ **NOT READY** (2 Critical Issues)
+**Current Version:** 2.13.1  
+**Status:** 🚀 **READY FOR DEPLOYMENT** (Debate Feature Added)
 
 ---
 
 ## ✅ WHAT'S WORKING
 
-### 1. **Code Build** ✅ FIXED
+### 1. **New Debate Feature** 🔥 ADDED
+- **UI:** Full Debate View with polished, minimalist aesthetics
+- **Logic:** Admin creation controls, active debate fetching, specialized takes feed
+- **Access:** Admin badge enabled for owner account
+- **Status:** ✅ Fully Implemented & Merged
+
+### 2. **Code Build** ✅ FIXED
 - **Issue:** Build was failing due to Supabase import errors after Firebase migration
 - **Solution:** Removed obsolete Supabase imports from `fcmService.ts`
 - **Status:** ✅ `npm run build` now passes successfully

@@ -10,8 +10,17 @@ export interface Debate {
     createdBy: string;
     isActive: boolean;
     createdAt: Date;
+    endsAt: Date;
+    stats: {
+        agree: number;
+        neutral: number;
+        disagree: number;
+        total: number;
+    };
     totalTakes: number;
 }
+
+export type VoteType = 'agree' | 'neutral' | 'disagree';
 
 export interface DebateTake {
     id: string;
@@ -19,11 +28,13 @@ export interface DebateTake {
     authorAnonId: string;
     authorAvatarColor: string;
     text: string;
-    type: 'text' | 'emoji';
+    type: 'text' | 'emoji' | 'gif' | 'sticker';
     upvotes: number;
     downvotes: number;
     userVote?: 'up' | 'down' | null;
+    replyCount: number;
     createdAt: Date;
+    isSpicy?: boolean; // High velocity
 }
 
 export type Theme = 'light' | 'dark';
